@@ -1,0 +1,2 @@
+-- Schema GermaClients v3 - see patch_v3.sql for creation script
+-- This file is for reference only. Execute patch_v3.sql in Supabase SQL Editor.
