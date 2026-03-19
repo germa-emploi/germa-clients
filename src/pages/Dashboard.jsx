@@ -98,7 +98,15 @@ export default function Dashboard() {
     ]
 
     // Relances & top
-    const upcomingRelances = actions.filter(a => a.next_action_date && a.result === 'À relancer').sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 8)
+    const upcomingRelancesAll = actions.filter(a => a.next_action_date && a.result === 'À relancer')
+    // Keep only the latest relance per enterprise
+    const latestRelanceByEnt = {}
+    upcomingRelancesAll.forEach(a => {
+      if (!latestRelanceByEnt[a.enterprise_id] || new Date(a.performed_at) > new Date(latestRelanceByEnt[a.enterprise_id].performed_at)) {
+        latestRelanceByEnt[a.enterprise_id] = a
+      }
+    })
+    const upcomingRelances = Object.values(latestRelanceByEnt).sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 15)
     const entreprisesARelancer = enterprises.filter(e => e.a_relancer).slice(0, 8)
     return { totalEnterprises, prospects, clients, aRelancer, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances, entreprisesARelancer }
   }, [enterprises, actions, profiles, sectors])

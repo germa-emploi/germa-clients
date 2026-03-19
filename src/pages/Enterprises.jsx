@@ -29,6 +29,7 @@ export default function Enterprises({ filterStatus }) {
   const [filterProposition, setFilterProposition] = useState('')
   const [filterDateYear, setFilterDateYear] = useState('')
   const [filterDateMonth, setFilterDateMonth] = useState('')
+  const [filterAncienClient, setFilterAncienClient] = useState('')
   const [sortColumn, setSortColumn] = useState('name')
   const [sortDir, setSortDir] = useState('asc')
 
@@ -78,11 +79,14 @@ export default function Enterprises({ filterStatus }) {
       if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
       if (filterSector && e.sector_id !== filterSector) return false
       if (filterDept && e.department !== filterDept) return false
-      if (filterCommercial && e.assigned_to !== filterCommercial) return false
+      if (filterCommercial === '__none__' && e.assigned_to) return false
+      if (filterCommercial && filterCommercial !== '__none__' && e.assigned_to !== filterCommercial) return false
       if (filterRelance && !e.a_relancer) return false
       if (filterProposition === 'envoyee' && !e.proposition_envoyee_at) return false
       if (filterProposition === 'signee' && !e.proposition_signee_at) return false
       if (filterProposition === 'aucune' && (e.proposition_envoyee_at || e.proposition_signee_at)) return false
+      if (filterAncienClient === 'oui' && !e.dernier_contrat_at) return false
+      if (filterAncienClient === 'non' && e.dernier_contrat_at) return false
       if (filterDateYear) {
         const dateField = isClients ? e.converted_at : e.created_at
         if (!dateField) return false
@@ -92,7 +96,7 @@ export default function Enterprises({ filterStatus }) {
       }
       return true
     })
-  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterRelance, filterProposition, filterDateYear, filterDateMonth])
+  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterRelance, filterProposition, filterAncienClient, filterDateYear, filterDateMonth])
 
   // Sort
   const sorted = useMemo(() => {
@@ -127,6 +131,9 @@ export default function Enterprises({ filterStatus }) {
         case 'dateCol':
           va = (isClients ? a.converted_at : a.created_at) || ''; vb = (isClients ? b.converted_at : b.created_at) || ''
           break
+        case 'ancienClient':
+          va = a.dernier_contrat_at || ''; vb = b.dernier_contrat_at || ''
+          break
         case 'created_at':
           va = a.created_at; vb = b.created_at
           break
@@ -154,10 +161,10 @@ export default function Enterprises({ filterStatus }) {
     return sortDir === 'asc' ? <ArrowUp size={12} className="text-germa-600" /> : <ArrowDown size={12} className="text-germa-600" />
   }
 
-  const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterDateYear].filter(Boolean).length
+  const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterDateYear, filterAncienClient].filter(Boolean).length
 
   function clearFilters() {
-    setFilterSector(''); setFilterDept(''); setFilterCommercial(''); setFilterProposition(''); setFilterDateYear(''); setFilterDateMonth('')
+    setFilterSector(''); setFilterDept(''); setFilterCommercial(''); setFilterProposition(''); setFilterDateYear(''); setFilterDateMonth(''); setFilterAncienClient('')
   }
 
   if (loading) {
@@ -248,6 +255,7 @@ export default function Enterprises({ filterStatus }) {
             <label className="block text-xs font-medium text-gray-500 mb-1">Commercial</label>
             <select value={filterCommercial} onChange={e => setFilterCommercial(e.target.value)} className="select-field text-sm">
               <option value="">Tous</option>
+              <option value="__none__">Aucun</option>
               {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </select>
           </div>
@@ -275,6 +283,16 @@ export default function Enterprises({ filterStatus }) {
               )}
             </div>
           </div>
+          {isProspects && (
+            <div className="flex-1 min-w-[120px]">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Ancien client</label>
+              <select value={filterAncienClient} onChange={e => setFilterAncienClient(e.target.value)} className="select-field text-sm">
+                <option value="">Tous</option>
+                <option value="oui">Oui</option>
+                <option value="non">Non</option>
+              </select>
+            </div>
+          )}
           {activeFilters > 0 && (
             <button onClick={clearFilters} className="text-sm text-gray-500 hover:text-red-600 flex items-center gap-1 pb-2.5">
               <X size={14} /> Effacer
@@ -304,6 +322,7 @@ export default function Enterprises({ filterStatus }) {
                   <Th label="Dernière action" col="lastAction" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <Th label="Commercial" col="commercial" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden md:table-cell" />
                   <Th label={isClients ? 'Conversion' : 'Création'} col="dateCol" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
+                  {isProspects && <Th label="Ancien client" col="ancienClient" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />}
                 </tr>
               </thead>
               <tbody>
@@ -335,6 +354,13 @@ export default function Enterprises({ filterStatus }) {
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{formatDate(lastActionDate[ent.id])}</td>
                       <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{assignedTo?.full_name?.split(' ')[0] || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{formatDate(isClients ? ent.converted_at : ent.created_at)}</td>
+                      {isProspects && (
+                        <td className="px-4 py-3 hidden lg:table-cell">
+                          {ent.dernier_contrat_at ? (
+                            <span className="text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700">{formatDate(ent.dernier_contrat_at)}</span>
+                          ) : <span className="text-gray-300 text-xs">—</span>}
+                        </td>
+                      )}
                     </tr>
                   )
                 })}

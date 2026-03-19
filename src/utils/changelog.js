@@ -1,6 +1,17 @@
-export const APP_DISPLAY_VERSION = '2.9.0'
+export const APP_DISPLAY_VERSION = '2.9.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.9.1',
+    date: '2026-03-19',
+    changes: [
+      'Correction : une seule relance par entreprise dans les relances planifiées (la plus récente)',
+      'Reclasser un client : modale avec choix "Ancien client" (saisie date du dernier contrat) ou "Correction d\'erreur" (n\'a jamais été client)',
+      'Badge "Ancien client" visible sur les fiches prospects reclassés, avec date du dernier contrat',
+      'Nouvelle colonne "Ancien client" dans la vue prospects, triable et filtrable (Oui / Non)',
+      'Filtre commercial : ajout du choix "Aucun" pour afficher les entreprises sans commercial assigné',
+    ],
+  },
   {
     version: '2.9.0',
     date: '2026-03-15',

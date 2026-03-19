@@ -30,6 +30,7 @@ export default function EnterpriseDetail() {
   const [showEditEnterprise, setShowEditEnterprise] = useState(false)
   const [converting, setConverting] = useState(false)
   const [showReclasser, setShowReclasser] = useState(false)
+  const [showReclasserModal, setShowReclasserModal] = useState(false)
   const [showAddInterlocuteur, setShowAddInterlocuteur] = useState(false)
   const [editingInterlocuteur, setEditingInterlocuteur] = useState(null)
   const [showProposition, setShowProposition] = useState(false)
@@ -149,6 +150,17 @@ export default function EnterpriseDetail() {
                 </div>
               )}
 
+              {/* Badge Ancien Client */}
+              {enterprise.status === 'prospect' && enterprise.dernier_contrat_at && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-50 to-orange-100 border border-amber-200 mt-2">
+                  <div className="w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center"><Clock size={12} className="text-white" /></div>
+                  <div>
+                    <p className="text-xs font-semibold text-amber-800">Ancien client</p>
+                    <p className="text-[10px] text-amber-600">Dernier contrat : {formatDate(enterprise.dernier_contrat_at)}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-gray-500">
                 {sector && <span className="flex items-center gap-1"><Building2 size={13} />{sector.name}</span>}
                 {enterprise.department && <span className="flex items-center gap-1"><MapPin size={13} />{enterprise.department}{enterprise.city ? ` — ${enterprise.city}` : ''}</span>}
@@ -199,20 +211,23 @@ export default function EnterpriseDetail() {
             {isDirection && (
               <>
                 <div className="relative">
-                  <button onClick={() => setShowReclasser(!showReclasser)} className="btn-secondary flex items-center gap-2 text-sm">
+                  <button onClick={() => {
+                    if (enterprise.status === 'client') {
+                      setShowReclasserModal(true)
+                    } else {
+                      // prospect → client: use Convertir button
+                      setShowReclasser(!showReclasser)
+                    }
+                  }} className="btn-secondary flex items-center gap-2 text-sm">
                     <Repeat size={14} /> Reclasser
                   </button>
-                  {showReclasser && (
+                  {showReclasser && enterprise.status === 'prospect' && (
                     <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-10 py-1 min-w-[140px]">
-                      {['prospect', 'client'].filter(s => s !== enterprise.status).map(s => (
-                        <button key={s} onClick={async () => {
-                          await supabase.from('enterprises').update({ status: s, converted_at: null, converted_by: null }).eq('id', id)
-                          await logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId: profile.id, targetType: 'enterprise', targetId: id, targetName: enterprise.name, details: `Reclassé en ${s}` })
-                          setShowReclasser(false); loadData()
-                        }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">
-                          {s === 'prospect' ? 'Prospect' : 'Client'}
-                        </button>
-                      ))}
+                      <button onClick={async () => {
+                        await supabase.from('enterprises').update({ status: 'client', converted_at: null, converted_by: null }).eq('id', id)
+                        await logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId: profile.id, targetType: 'enterprise', targetId: id, targetName: enterprise.name, details: 'Reclassé en client' })
+                        setShowReclasser(false); loadData()
+                      }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Client</button>
                     </div>
                   )}
                 </div>
@@ -312,6 +327,7 @@ export default function EnterpriseDetail() {
       {editingInterlocuteur && <EditInterlocuteurModal inter={editingInterlocuteur} onClose={() => setEditingInterlocuteur(null)} onSaved={() => { setEditingInterlocuteur(null); loadData() }} />}
       {showProposition && <PropositionModal enterprise={enterprise} profileId={profile.id} onClose={() => setShowProposition(false)} onSaved={() => { setShowProposition(false); loadData() }} />}
       {showFusion && <FusionModal enterprise={enterprise} profiles={profiles} sectors={sectors} userId={profile.id} onClose={() => setShowFusion(false)} onDone={() => { setShowFusion(false); loadData() }} navigate={navigate} />}
+      {showReclasserModal && <ReclasserModal enterprise={enterprise} userId={profile.id} onClose={() => setShowReclasserModal(false)} onDone={() => { setShowReclasserModal(false); loadData() }} />}
     </div>
   )
 }
@@ -502,6 +518,73 @@ function AddInterlocuteurModal({ enterpriseId, onClose, onCreated }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Email</label><input value={form.email} onChange={e => update('email', e.target.value)} className="input-field" /></div>
           </div>
           <div className="flex gap-3 pt-2"><button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button><button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">{saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <UserPlus size={16} />}<span>Ajouter</span></button></div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ===================== RECLASSER MODAL =====================
+function ReclasserModal({ enterprise, userId, onClose, onDone }) {
+  const [mode, setMode] = useState('ancien') // 'ancien' | 'jamais'
+  const [date, setDate] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    if (mode === 'ancien' && !date) return
+    setSaving(true)
+    const updates = {
+      status: 'prospect',
+      converted_at: null,
+      converted_by: null,
+      dernier_contrat_at: mode === 'ancien' ? date : null,
+    }
+    await supabase.from('enterprises').update(updates).eq('id', enterprise.id)
+    await logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId, targetType: 'enterprise', targetId: enterprise.id, targetName: enterprise.name, details: mode === 'ancien' ? `Reclassé en prospect (ancien client, dernier contrat : ${date})` : 'Reclassé en prospect (n\'a jamais été client)' })
+    onDone()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-display font-semibold text-lg">Reclasser en prospect</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <p className="text-sm text-gray-600">L'entreprise <strong>{enterprise.name}</strong> va être reclassée en prospect.</p>
+
+          <div className="space-y-2">
+            <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-gray-50 transition-colors"
+              style={{ borderColor: mode === 'ancien' ? '#2D6A4F' : '#e5e7eb' }}>
+              <input type="radio" name="mode" checked={mode === 'ancien'} onChange={() => setMode('ancien')} className="text-germa-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Ancien client</p>
+                <p className="text-xs text-gray-500">Indiquez la date du dernier contrat</p>
+              </div>
+            </label>
+            {mode === 'ancien' && (
+              <div className="pl-8">
+                <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field text-sm" required autoFocus />
+              </div>
+            )}
+            <label className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer hover:bg-gray-50 transition-colors"
+              style={{ borderColor: mode === 'jamais' ? '#2D6A4F' : '#e5e7eb' }}>
+              <input type="radio" name="mode" checked={mode === 'jamais'} onChange={() => setMode('jamais')} className="text-germa-600" />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Correction d'erreur</p>
+                <p className="text-xs text-gray-500">Cette entreprise n'a jamais été cliente</p>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
+            <button type="submit" disabled={saving || (mode === 'ancien' && !date)} className="btn-primary flex-1">
+              {saving ? 'Enregistrement…' : 'Reclasser en prospect'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
