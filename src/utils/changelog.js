@@ -1,6 +1,17 @@
-export const APP_DISPLAY_VERSION = '2.11.0-démo'
+export const APP_DISPLAY_VERSION = '2.12.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.12.0-démo',
+    date: '2026-09-18',
+    changes: [
+      '🔥 Score de chaleur (1 à 5 flammes) sur chaque fiche prospect, avec la raison et la date de calcul',
+      'Colonne « Chaleur » triable dans la liste des prospects (survol = raison)',
+      'Calcul nocturne par l\'assistant (Worker germaclients-ia, 3 h du matin) sur les prospects modifiés dans la journée ; calcul initial du 18/09/2026 sur les 1 407 prospects ayant au moins une action',
+      '✨ Priorités de la semaine : lecture instantanée des scores stockés, 15 prospects les plus chauds',
+      'Saisie libre d\'action retirée',
+    ],
+  },
   {
     version: '2.11.0-démo',
     date: '2026-09-18',
@@ -8,9 +19,8 @@ export const CHANGELOG = [
       'Branche de démonstration en lecture seule sur la vraie base : rien de ce qui est saisi n\'est enregistré',
       '✨ Rédiger un e-mail (fiche entreprise) : brouillon de relance ou de premier contact rédigé par Claude à partir de l\'historique, modifiable, copier ou ouvrir dans Outlook',
       '✨ Brief avant l\'appel (fiche entreprise) : résumé en cinq points de la relation, angle conseillé, questions à poser',
-      '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 étoiles avec la raison, y compris ceux sans relance planifiée',
+      '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
-      '🔥 Score de chaleur (1 à 5 flammes) sur chaque fiche prospect avec la raison, colonne « Chaleur » triable dans la liste des prospects ; calculé chaque nuit par l\'assistant pour les fiches modifiées dans la journée (calcul initial du 18/09/2026 sur tous les prospects)',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
   },
