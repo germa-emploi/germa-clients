@@ -36,6 +36,7 @@ export default function Enterprises({ filterStatus }) {
   const [filterCommercial, setFilterCommercial] = useState(saved.filterCommercial ?? '')
   const [showFilters, setShowFilters] = useState(saved.showFilters ?? false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showMailing, setShowMailing] = useState(false)
   const [filterRelance, setFilterRelance] = useState(saved.filterRelance ?? false)
   const [filterProposition, setFilterProposition] = useState(saved.filterProposition ?? '')
   const [filterDateYear, setFilterDateYear] = useState(saved.filterDateYear ?? '')
@@ -169,13 +170,6 @@ export default function Enterprises({ filterStatus }) {
     return arr
   }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, profiles])
 
-  function copyEmails() {
-    const mails = [...new Set(sorted.map(e => (e.email || '').trim()).filter(m => m.includes('@')))]
-    const missing = sorted.length - sorted.filter(e => (e.email || '').includes('@')).length
-    if (!mails.length) { alert('Aucune adresse e-mail parmi les entreprises affichées.'); return }
-    navigator.clipboard?.writeText(mails.join('; ')).then(() => alert(`${mails.length} adresse${mails.length > 1 ? 's' : ''} copiée${mails.length > 1 ? 's' : ''} (séparées par « ; »)${missing ? ` · ${missing} entreprise${missing > 1 ? 's' : ''} sans e-mail` : ''}`))
-  }
-
   function toggleSort(col) {
     if (sortColumn === col) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -218,7 +212,7 @@ export default function Enterprises({ filterStatus }) {
           <p className="text-gray-500 text-sm">{sorted.length} {title.toLowerCase()}</p>
         </div>
         <div className="flex gap-2 self-start">
-          <button onClick={copyEmails} className="btn-secondary flex items-center gap-2 text-sm" title="Copie les e-mails des entreprises affichées, séparés par des points-virgules">📋 Copier les e-mails</button>
+          <button onClick={() => setShowMailing(true)} className="btn-secondary flex items-center gap-2 text-sm" title="Choisir les entreprises affichées et copier leurs e-mails">📋 Copier les e-mails</button>
           <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
             <Plus size={18} />
             <span>{isProspects ? 'Nouveau prospect' : 'Nouveau client'}</span>
@@ -400,6 +394,7 @@ export default function Enterprises({ filterStatus }) {
       )}
 
       {/* Add Enterprise Modal */}
+      {showMailing && <MailingModal enterprises={sorted} title={title} onClose={() => setShowMailing(false)} />}
       {showAddModal && (
         <AddEnterpriseModal
           sectors={sectors}
@@ -525,6 +520,54 @@ function AddEnterpriseModal({ sectors, defaultStatus, onClose, onCreated }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+
+// ============================================================
+// Mailing : choisir les entreprises de la liste filtrée et copier leurs e-mails
+// ============================================================
+function MailingModal({ enterprises, title, onClose }) {
+  const withMail = enterprises.filter(e => (e.email || '').includes('@'))
+  const withoutMail = enterprises.length - withMail.length
+  const [checked, setChecked] = useState(() => new Set(withMail.map(e => e.id)))
+  const [q, setQ] = useState('')
+  const [done, setDone] = useState('')
+  const visible = withMail.filter(e => !q || (e.name || '').toLowerCase().includes(q.toLowerCase()) || (e.city || '').toLowerCase().includes(q.toLowerCase()))
+  const toggle = (id) => setChecked(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const allVisible = visible.length > 0 && visible.every(e => checked.has(e.id))
+  const toggleAll = () => setChecked(s => { const n = new Set(s); visible.forEach(e => allVisible ? n.delete(e.id) : n.add(e.id)); return n })
+  const selected = withMail.filter(e => checked.has(e.id))
+  const copy = () => {
+    const mails = [...new Set(selected.map(e => e.email.trim()))]
+    navigator.clipboard?.writeText(mails.join('; ')).then(() => setDone(`${mails.length} adresse${mails.length > 1 ? 's' : ''} copiée${mails.length > 1 ? 's' : ''} — collez dans le champ Cci d'Outlook`))
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div><h2 className="font-display font-semibold text-lg">Copier les e-mails</h2><p className="text-xs text-gray-500">{title} · filtre en cours : {enterprises.length} entreprise{enterprises.length > 1 ? 's' : ''}{withoutMail ? `, dont ${withoutMail} sans e-mail` : ''}</p></div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="px-6 pt-4 flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2"><Search size={15} className="text-gray-400" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Filtrer par nom ou ville…" className="bg-transparent text-sm outline-none flex-1" /></div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap"><input type="checkbox" checked={allVisible} onChange={toggleAll} className="w-4 h-4 accent-germa-700" /> Tout {allVisible ? 'décocher' : 'cocher'}</label>
+        </div>
+        <div className="px-6 py-3 overflow-y-auto flex-1 divide-y divide-gray-100">
+          {visible.map(e => (
+            <label key={e.id} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded-lg">
+              <input type="checkbox" checked={checked.has(e.id)} onChange={() => toggle(e.id)} className="w-4 h-4 accent-germa-700 flex-shrink-0" />
+              <div className="min-w-0 flex-1"><div className="text-sm font-medium text-gray-900 truncate">{e.name}</div><div className="text-xs text-gray-500 truncate">{e.city || '—'} · {e.email}</div></div>
+            </label>
+          ))}
+          {visible.length === 0 && <div className="py-8 text-center text-sm text-gray-400">Aucune entreprise avec e-mail{q ? ' pour cette recherche' : ' dans la liste filtrée'}.</div>}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">
+          <span className="text-sm text-gray-600">{done || `${selected.length} sélectionnée${selected.length > 1 ? 's' : ''} sur ${withMail.length}`}</span>
+          <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Fermer</button><button onClick={copy} disabled={!selected.length} className="btn-primary disabled:opacity-50">Copier {selected.length} adresse{selected.length > 1 ? 's' : ''}</button></div>
+        </div>
       </div>
     </div>
   )
