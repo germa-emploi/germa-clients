@@ -10,8 +10,8 @@ export const CHANGELOG = [
       '✨ Brief avant l\'appel (fiche entreprise) : résumé en cinq points de la relation, angle conseillé, questions à poser',
       '✨ Saisie libre (nouvelle action) : décrire l\'échange en une phrase, le formulaire se remplit (type, résultat, date de relance, besoin identifié)',
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 étoiles avec la raison, y compris ceux sans relance planifiée',
-      '📋 Copier les e-mails (listes) : sélection des entreprises de la liste filtrée puis copie des adresses pour un mailing en Cci',
-      'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 4.6) ; repli sur un gabarit local si l\'IA ne répond pas',
+      '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
+      'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
   },
   {
