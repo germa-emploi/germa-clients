@@ -1,6 +1,17 @@
-export const APP_DISPLAY_VERSION = '2.9.1'
+export const APP_DISPLAY_VERSION = '2.10.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.10.0',
+    date: '2026-09-18',
+    changes: [
+      'Relances planifiées : un résultat "Sans suite", "Refus" ou "Signé" saisi après une relance la fait disparaître du tableau de bord (la dernière action de l\'entreprise fait foi)',
+      'Drapeau "À relancer" retiré automatiquement dès qu\'une action "Sans suite", "Refus" ou "Signé" est enregistrée',
+      'Nouveau champ "Date de l\'action" à la création et à la modification d\'une action (pré-rempli à aujourd\'hui, pas de date future)',
+      'Les fenêtres de saisie ne se ferment plus en cliquant à côté : uniquement via "Annuler" ou la croix',
+      'Bouton "Retour" sur les listes prospects/clients vers le tableau de bord ; recherche, filtres et tri de la liste conservés en revenant d\'une fiche',
+    ],
+  },
   {
     version: '2.9.1',
     date: '2026-03-19',

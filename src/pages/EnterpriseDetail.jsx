@@ -10,8 +10,15 @@ import {
 import {
   ACTION_TYPES, CHANNELS, RESULTS,
   STATUS_COLORS, RESULT_COLORS,
-  formatDate, formatDateTime, DEPARTMENTS
+  formatDate, formatDateTime, DEPARTMENTS,
+  CLOSING_RESULTS, todayISO, toLocalDateISO, performedAtFromDate
 } from '../utils/constants'
+
+// Retire le drapeau "À relancer" de l'entreprise quand une action clôture le suivi
+async function clearRelanceFlagIfClosing(enterpriseId, result) {
+  if (!CLOSING_RESULTS.includes(result)) return
+  await supabase.from('enterprises').update({ a_relancer: false }).eq('id', enterpriseId).eq('a_relancer', true)
+}
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
 
@@ -107,7 +114,7 @@ export default function EnterpriseDetail() {
     <div className="space-y-4 sm:space-y-6">
       <button onClick={() => navigate(enterprise?.status === 'client' ? '/clients' : '/prospects')}
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-germa-700 transition-colors">
-        <ArrowLeft size={16} /> Retour
+        <ArrowLeft size={16} /> Retour à la liste des {enterprise?.status === 'client' ? 'clients' : 'prospects'}
       </button>
 
       {/* Header card */}
@@ -335,18 +342,19 @@ export default function EnterpriseDetail() {
 // ===================== ADD ACTION MODAL =====================
 function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
   const { profile } = useAuth()
-  const [form, setForm] = useState({ action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: '', next_action_date: '', comments: '', contact: '' })
+  const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: '', next_action_date: '', comments: '', contact: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'action_type') setForm(o => ({ ...o, [f]: v, channel: v })) }
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError('')
-    const { error: err } = await supabase.from('actions').insert({ enterprise_id: enterpriseId, performed_by: profile.id, action_type: form.action_type, channel: form.channel, is_new_prospect: form.is_new_prospect, need_identified: form.need_identified, need_type: form.need_type || null, result: form.result, next_action: form.next_action || null, next_action_date: form.next_action_date || null, comments: form.comments || null, contact: form.contact || null }).select().single()
+    if (form.performed_date > todayISO()) { setError("La date de l'action ne peut pas être dans le futur."); setSaving(false); return }
+    const { error: err } = await supabase.from('actions').insert({ enterprise_id: enterpriseId, performed_by: profile.id, performed_at: performedAtFromDate(form.performed_date), action_type: form.action_type, channel: form.channel, is_new_prospect: form.is_new_prospect, need_identified: form.need_identified, need_type: form.need_type || null, result: form.result, next_action: form.next_action || null, next_action_date: form.next_action_date || null, comments: form.comments || null, contact: form.contact || null }).select().single()
     if (err) { setError(err.message); setSaving(false) }
-    else { await logActivity({ type: LOG_TYPES.ACTION_CREATED, userId: profile.id, targetType: 'enterprise', targetId: enterpriseId, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` }); onCreated() }
+    else { await clearRelanceFlagIfClosing(enterpriseId, form.result); await logActivity({ type: LOG_TYPES.ACTION_CREATED, userId: profile.id, targetType: 'enterprise', targetId: enterpriseId, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` }); onCreated() }
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">Nouvelle action</h2>
@@ -354,6 +362,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-xl">{error}</div>}
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Date de l'action *</label><input type="date" value={form.performed_date} max={todayISO()} onChange={e => update('performed_date', e.target.value)} className="input-field" required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'échange *</label><select value={form.action_type} onChange={e => update('action_type', e.target.value)} className="select-field">{ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Résultat *</label><select value={form.result} onChange={e => update('result', e.target.value)} className="select-field">{RESULTS.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
@@ -383,6 +392,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
 function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({
+    performed_date: action.performed_at ? toLocalDateISO(action.performed_at) : todayISO(),
     action_type: action.action_type || 'Physique', result: action.result || 'À relancer',
     is_new_prospect: action.is_new_prospect || false, need_identified: action.need_identified || false,
     need_type: action.need_type || '', next_action: action.next_action || '',
@@ -394,25 +404,29 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true)
+    if (form.performed_date > todayISO()) { alert("La date de l'action ne peut pas être dans le futur."); setSaving(false); return }
     await supabase.from('actions').update({
+      performed_at: performedAtFromDate(form.performed_date, action.performed_at),
       action_type: form.action_type, channel: form.action_type, result: form.result,
       is_new_prospect: form.is_new_prospect, need_identified: form.need_identified,
       need_type: form.need_type || null, next_action: form.next_action || null,
       next_action_date: form.next_action_date || null,
       comments: form.comments || null, contact: form.contact || null,
     }).eq('id', action.id)
+    await clearRelanceFlagIfClosing(action.enterprise_id, form.result)
     await logActivity({ type: LOG_TYPES.ACTION_UPDATED, userId: profile.id, targetType: 'enterprise', targetId: action.enterprise_id, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` })
     onSaved()
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">Modifier l'action</h2>
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Date de l'action *</label><input type="date" value={form.performed_date} max={todayISO()} onChange={e => update('performed_date', e.target.value)} className="input-field" required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'échange *</label><select value={form.action_type} onChange={e => update('action_type', e.target.value)} className="select-field">{ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Résultat *</label><select value={form.result} onChange={e => update('result', e.target.value)} className="select-field">{RESULTS.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
@@ -464,7 +478,7 @@ function EditEnterpriseModal({ enterprise, sectors, profiles, onClose, onSaved }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">Modifier l'entreprise</h2>
@@ -507,7 +521,7 @@ function AddInterlocuteurModal({ enterpriseId, onClose, onCreated }) {
     onCreated()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">Nouvel interlocuteur</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -546,7 +560,7 @@ function ReclasserModal({ enterprise, userId, onClose, onDone }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">Reclasser en prospect</h2>
@@ -602,7 +616,7 @@ function EditInterlocuteurModal({ inter, onClose, onSaved }) {
     onSaved()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">Modifier l'interlocuteur</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -634,7 +648,7 @@ function PropositionModal({ enterprise, profileId, onClose, onSaved }) {
     onSaved()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">Proposition commerciale</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
         <div className="p-6 space-y-4">
@@ -769,7 +783,7 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>

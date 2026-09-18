@@ -98,15 +98,17 @@ export default function Dashboard() {
     ]
 
     // Relances & top
-    const upcomingRelancesAll = actions.filter(a => a.next_action_date && a.result === 'À relancer')
-    // Keep only the latest relance per enterprise
-    const latestRelanceByEnt = {}
-    upcomingRelancesAll.forEach(a => {
-      if (!latestRelanceByEnt[a.enterprise_id] || new Date(a.performed_at) > new Date(latestRelanceByEnt[a.enterprise_id].performed_at)) {
-        latestRelanceByEnt[a.enterprise_id] = a
+    // Dernière action de chaque entreprise : une relance n'est affichée que si cette dernière action est "À relancer" avec une date.
+    // Un "Sans suite", "Refus" ou "Signé" postérieur fait donc disparaître la relance.
+    const latestActionByEnt = {}
+    actions.forEach(a => {
+      if (!latestActionByEnt[a.enterprise_id] || new Date(a.performed_at) > new Date(latestActionByEnt[a.enterprise_id].performed_at)) {
+        latestActionByEnt[a.enterprise_id] = a
       }
     })
-    const upcomingRelances = Object.values(latestRelanceByEnt).sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 15)
+    const upcomingRelances = Object.values(latestActionByEnt)
+      .filter(a => a.next_action_date && a.result === 'À relancer')
+      .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 15)
     const entreprisesARelancer = enterprises.filter(e => e.a_relancer).slice(0, 8)
     return { totalEnterprises, prospects, clients, aRelancer, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances, entreprisesARelancer }
   }, [enterprises, actions, profiles, sectors])
@@ -375,7 +377,7 @@ function ActivityChartModal({ actions, enterprises, buildMonthlyData, buildAnnua
   }, [mode, startYear, startMonth, actions, enterprises])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">📈 Activité & Conversions</h2>
@@ -430,7 +432,7 @@ function PieChartModal({ type, actions, buildPieData, availableYears, onClose })
   const total = data.reduce((s, d) => s + d.value, 0)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">{title}</h2>
@@ -498,7 +500,7 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">{titles[type]}</h2>

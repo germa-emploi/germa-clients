@@ -12,6 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import * as XLSX from 'xlsx'
+import { isHiddenAccount } from '../utils/constants'
 
 export default function Admin() {
   const [tab, setTab] = useState('users')
@@ -102,7 +103,7 @@ function CreateUserModal({ onClose, onCreated }) {
     onCreated()
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">Créer un compte</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -214,7 +215,7 @@ function JournalTab() {
           <option value="">Tous les types</option>{activityTypes.map(t => <option key={t} value={t}>{ACTIVITY_LABELS[t] || t}</option>)}
         </select>
         <select value={filterUser} onChange={e => setFilterUser(e.target.value)} className="select-field text-sm !w-auto">
-          <option value="">Tous les utilisateurs</option>{profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+          <option value="">Tous les utilisateurs</option>{profiles.filter(p => !isHiddenAccount(p)).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
         </select>
       </div>
       <div className="card overflow-hidden">
@@ -273,7 +274,7 @@ function StatsTab() {
   }, [])
 
   const chartData = useMemo(() => {
-    const activeProfiles = profiles.filter(p => actions.some(a => a.performed_by === p.id) || enterprises.some(e => e.created_by === p.id))
+    const activeProfiles = profiles.filter(p => !isHiddenAccount(p) && (actions.some(a => a.performed_by === p.id) || enterprises.some(e => e.created_by === p.id)))
     const colors = ['#2D6A4F', '#0ea5e9', '#f59e0b', '#ef4444', '#8b5cf6', '#22c55e', '#ec4899']
 
     function buildData(filterFn) {
@@ -444,7 +445,7 @@ function ExportTab() {
       }))
     } else if (type === 'profiles') {
       filename = 'Utilisateurs'
-      data = profiles.map(p => ({
+      data = profiles.filter(p => !isHiddenAccount(p)).map(p => ({
         'Nom': p.full_name, 'Email': p.email, 'Rôle': p.role, 'Actif': p.is_active ? 'Oui' : 'Non',
       }))
     }

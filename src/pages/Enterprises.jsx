@@ -3,35 +3,57 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
-  Search, Plus, Filter, Building2, X, MapPin, ArrowUpDown, ArrowUp, ArrowDown
+  Search, Plus, Filter, Building2, X, MapPin, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft
 } from 'lucide-react'
-import { DEPARTMENTS, STATUS_COLORS, formatDate } from '../utils/constants'
+import { DEPARTMENTS, STATUS_COLORS, formatDate, isHiddenAccount } from '../utils/constants'
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES } from '../utils/activityLog'
 
 const MONTHS_FR = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'Août', 'Sept.', 'Oct.', 'Nov.', 'Déc.']
 
+// Mémorise recherche, filtres et tri de la liste (par onglet prospects/clients) le temps de la session,
+// pour les retrouver intacts en revenant d'une fiche entreprise.
+const LIST_STATE_KEYS = ['search', 'filterSector', 'filterDept', 'filterCommercial', 'showFilters', 'filterRelance', 'filterProposition', 'filterDateYear', 'filterDateMonth', 'filterAncienClient', 'sortColumn', 'sortDir']
+function readListState(status) {
+  try { return JSON.parse(sessionStorage.getItem(`gc_list_${status}`) || '{}') } catch { return {} }
+}
+function writeListState(status, state) {
+  try { sessionStorage.setItem(`gc_list_${status}`, JSON.stringify(state)) } catch { /* stockage indisponible : on ignore */ }
+}
+
 export default function Enterprises({ filterStatus }) {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const saved = readListState(filterStatus)
   const [enterprises, setEnterprises] = useState([])
   const [sectors, setSectors] = useState([])
   const [profiles, setProfiles] = useState([])
   const [actions, setActions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [filterSector, setFilterSector] = useState('')
-  const [filterDept, setFilterDept] = useState('')
-  const [filterCommercial, setFilterCommercial] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [search, setSearch] = useState(saved.search ?? '')
+  const [filterSector, setFilterSector] = useState(saved.filterSector ?? '')
+  const [filterDept, setFilterDept] = useState(saved.filterDept ?? '')
+  const [filterCommercial, setFilterCommercial] = useState(saved.filterCommercial ?? '')
+  const [showFilters, setShowFilters] = useState(saved.showFilters ?? false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [filterRelance, setFilterRelance] = useState(false)
-  const [filterProposition, setFilterProposition] = useState('')
-  const [filterDateYear, setFilterDateYear] = useState('')
-  const [filterDateMonth, setFilterDateMonth] = useState('')
-  const [filterAncienClient, setFilterAncienClient] = useState('')
-  const [sortColumn, setSortColumn] = useState('name')
-  const [sortDir, setSortDir] = useState('asc')
+  const [filterRelance, setFilterRelance] = useState(saved.filterRelance ?? false)
+  const [filterProposition, setFilterProposition] = useState(saved.filterProposition ?? '')
+  const [filterDateYear, setFilterDateYear] = useState(saved.filterDateYear ?? '')
+  const [filterDateMonth, setFilterDateMonth] = useState(saved.filterDateMonth ?? '')
+  const [filterAncienClient, setFilterAncienClient] = useState(saved.filterAncienClient ?? '')
+  const [sortColumn, setSortColumn] = useState(saved.sortColumn ?? 'name')
+  const [sortDir, setSortDir] = useState(saved.sortDir ?? 'asc')
+
+  const listState = { search, filterSector, filterDept, filterCommercial, showFilters, filterRelance, filterProposition, filterDateYear, filterDateMonth, filterAncienClient, sortColumn, sortDir }
+  const setters = { search: setSearch, filterSector: setFilterSector, filterDept: setFilterDept, filterCommercial: setFilterCommercial, showFilters: setShowFilters, filterRelance: setFilterRelance, filterProposition: setFilterProposition, filterDateYear: setFilterDateYear, filterDateMonth: setFilterDateMonth, filterAncienClient: setFilterAncienClient, sortColumn: setSortColumn, sortDir: setSortDir }
+  const defaults = { search: '', filterSector: '', filterDept: '', filterCommercial: '', showFilters: false, filterRelance: false, filterProposition: '', filterDateYear: '', filterDateMonth: '', filterAncienClient: '', sortColumn: 'name', sortDir: 'asc' }
+  // Sauvegarde à chaque changement
+  useEffect(() => { writeListState(filterStatus, listState) }, [filterStatus, ...LIST_STATE_KEYS.map(k => listState[k])])
+  // Changement d'onglet prospects ↔ clients : recharge l'état propre à cet onglet
+  useEffect(() => {
+    const s = readListState(filterStatus)
+    LIST_STATE_KEYS.forEach(k => setters[k](s[k] ?? defaults[k]))
+  }, [filterStatus])
 
   const isProspects = filterStatus === 'prospect'
   const isClients = filterStatus === 'client'
@@ -177,6 +199,11 @@ export default function Enterprises({ filterStatus }) {
 
   return (
     <div className="space-y-4">
+      <button onClick={() => navigate('/')}
+        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-germa-700 transition-colors">
+        <ArrowLeft size={16} /> Retour au tableau de bord
+      </button>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -256,7 +283,7 @@ export default function Enterprises({ filterStatus }) {
             <select value={filterCommercial} onChange={e => setFilterCommercial(e.target.value)} className="select-field text-sm">
               <option value="">Tous</option>
               <option value="__none__">Aucun</option>
-              {profiles.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+              {profiles.filter(p => !isHiddenAccount(p)).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </select>
           </div>
           <div className="flex-1 min-w-[140px]">
@@ -447,7 +474,7 @@ function AddEnterpriseModal({ sectors, defaultStatus, onClose, onCreated }) {
   const titleLabel = defaultStatus === 'client' ? 'Nouveau client' : 'Nouveau prospect'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="font-display font-semibold text-lg">{titleLabel}</h2>

@@ -52,3 +52,24 @@ export function timeAgo(dateStr) {
   if (diff < 30) return `Il y a ${Math.floor(diff / 7)} sem.`
   return formatDate(dateStr)
 }
+
+// Comptes techniques masqués des listes d'utilisateurs et des statistiques (restent visibles dans la gestion des utilisateurs)
+export const HIDDEN_ACCOUNT_EMAILS = ['ymonteiro@hotmail.com', 'solo6782@gmail.com']
+export const isHiddenAccount = (p) => !!p && HIDDEN_ACCOUNT_EMAILS.includes((p.email || '').toLowerCase())
+
+// Résultats d'action qui clôturent le suivi (retirent la relance et le drapeau "À relancer")
+export const CLOSING_RESULTS = ['Sans suite', 'Refus', 'Signé']
+
+// Date du jour au format AAAA-MM-JJ (heure locale)
+export function toLocalDateISO(value) {
+  const d = value ? new Date(value) : new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+export function todayISO() { return toLocalDateISO() }
+// Construit le timestamp performed_at : si la date est aujourd'hui → maintenant ; sinon → midi ce jour-là (heure locale)
+export function performedAtFromDate(dateStr, previous) {
+  if (previous && toLocalDateISO(previous) === dateStr) return previous
+  if (!dateStr || dateStr === todayISO()) return new Date().toISOString()
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d, 12, 0, 0).toISOString()
+}
