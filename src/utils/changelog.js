@@ -1,6 +1,19 @@
-export const APP_DISPLAY_VERSION = '2.10.0-démo'
+export const APP_DISPLAY_VERSION = '2.11.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.11.0-démo',
+    date: '2026-09-18',
+    changes: [
+      'Branche de démonstration en lecture seule sur la vraie base : rien de ce qui est saisi n\'est enregistré',
+      '✨ Rédiger un e-mail (fiche entreprise) : brouillon de relance ou de premier contact rédigé par Claude à partir de l\'historique, modifiable, copier ou ouvrir dans Outlook',
+      '✨ Brief avant l\'appel (fiche entreprise) : résumé en cinq points de la relation, angle conseillé, questions à poser',
+      '✨ Saisie libre (nouvelle action) : décrire l\'échange en une phrase, le formulaire se remplit (type, résultat, date de relance, besoin identifié)',
+      '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 étoiles avec la raison, y compris ceux sans relance planifiée',
+      '📋 Copier les e-mails (listes) : sélection des entreprises de la liste filtrée puis copie des adresses pour un mailing en Cci',
+      'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 4.6) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
   {
     version: '2.10.0',
     date: '2026-09-18',
