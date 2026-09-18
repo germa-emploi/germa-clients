@@ -13,7 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { formatDate, RESULT_COLORS, STATUS_COLORS } from '../utils/constants'
 import { fetchAll } from '../utils/dataHelpers'
-import { weeklyPriorities } from '../demo/demo'
+import { weeklyPriorities, aiRequest } from '../demo/demo'
 
 const COLORS_MAIN = ['#2D6A4F', '#52B788', '#40916C', '#74C69D', '#95D5B2', '#B7E4C7', '#1B4332', '#D8F3DC', '#8ECAE6', '#FFB703']
 const PIE_RESULT = { 'À relancer': '#3b82f6', 'RDV pris': '#22c55e', 'Refus': '#ef4444', 'Sans suite': '#9ca3af', 'Signé': '#10b981' }
@@ -556,8 +556,19 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
 // ============================================================
 function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
   const [ready, setReady] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setReady(true), 1200); return () => clearTimeout(t) }, [])
-  const res = ready ? weeklyPriorities({ enterprises, actions, profiles, limit: 10 }) : null
+  const [res, setRes] = useState(null)
+  const [source, setSource] = useState('')
+  useEffect(() => { (async () => {
+    const local = weeklyPriorities({ enterprises, actions, profiles, limit: 30 })
+    const byId = Object.fromEntries(local.top.map(r => [r.id, r]))
+    const ctx = local.top.map(r => `id=${r.id} | ${r.name} (${r.city || '?'}) | ${r.nbActions} actions | dernier contact ${formatDate(r.lastDate)}${r.nextDate ? ` | relance prévue ${formatDate(r.nextDate)}` : ' | aucune relance planifiée'} | commentaires : ${(actions.filter(a => a.enterprise_id === r.id).sort((a, b) => new Date(b.performed_at) - new Date(a.performed_at)).slice(0, 3).map(a => a.comments || '').join(' / ')).slice(0, 400)}`).join('\n')
+    const ai = await aiRequest('priorities', `Prospects candidats (présélection par mots-clés parmi ${local.total} fiches « À relancer ») :\n${ctx}`)
+    if (ai?.result?.top?.length) {
+      setRes({ total: local.total, top: ai.result.top.filter(t => byId[t.id]).map(t => ({ ...byId[t.id], stars: Math.max(1, Math.min(5, +t.stars || 3)), why: t.why })), excluded: ai.result.excluded || [] })
+      setSource(`Classement par ${ai.model} — ${ai.usage?.input_tokens ?? '?'} tokens lus`)
+    } else { await new Promise(r => setTimeout(r, 1000)); setRes({ total: local.total, top: local.top.slice(0, 10), excluded: [] }); setSource('Classement par mots-clés (gabarit local, IA indisponible)') }
+    setReady(true)
+  })() }, [])
   const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -568,7 +579,7 @@ function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
         </div>
         <div className="p-6">
           {!ready ? <div className="flex items-center justify-center gap-2 py-10 text-violet-700 text-sm"><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /> Lecture des relances et des commentaires…</div> : <>
-            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ {res.top.length} prospects à travailler en priorité, choisis parmi {res.total} fiches « À relancer » — y compris celles sans date de relance (démo : classement par mots-clés, sans IA).</div>
+            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ {res.top.length} prospects à travailler en priorité, choisis parmi {res.total} fiches « À relancer » — y compris celles sans date de relance. {source}.</div>
             <div className="divide-y divide-gray-100">
               {res.top.map(r => (
                 <div key={r.id} className="py-3 flex items-start justify-between gap-3">
@@ -584,7 +595,10 @@ function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
             </div>
           </>}
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">
+          <span className="text-xs text-gray-500">{ready && res.excluded?.length ? `Écartés : ${res.excluded.slice(0, 4).map(x => (enterprises.find(e => e.id === x.id)?.name || x.id) + (x.why ? ` (${x.why})` : '')).join(' · ')}` : ''}</span>
+          <button onClick={onClose} className="btn-secondary">Fermer</button>
+        </div>
       </div>
     </div>
   )

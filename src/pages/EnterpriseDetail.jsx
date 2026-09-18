@@ -21,7 +21,7 @@ async function clearRelanceFlagIfClosing(enterpriseId, result) {
 }
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
-import { draftEmail, briefBeforeCall, parseFreeText } from '../demo/demo'
+import { draftEmail, briefBeforeCall, parseFreeText, aiRequest, buildContext } from '../demo/demo'
 
 export default function EnterpriseDetail() {
   const { id } = useParams()
@@ -938,16 +938,25 @@ function Thinking({ label }) {
 function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, onClose }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState(null)
-  useEffect(() => { const t = setTimeout(() => { setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setReady(true) }, 1100); return () => clearTimeout(t) }, [])
+  const [source, setSource] = useState('')
+  const generate = async () => {
+    setReady(false)
+    const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, kind: actions.length ? 'relance' : 'premier contact' })
+    const res = await aiRequest('mail', ctx)
+    if (res?.result?.subject && res?.result?.body) { setDraft(res.result); setSource(`Rédigé par ${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus, ${res.usage?.output_tokens ?? '?'} écrits`) }
+    else { await new Promise(r => setTimeout(r, 900)); setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setSource('Gabarit local (IA indisponible)') }
+    setReady(true)
+  }
+  useEffect(() => { generate() }, [])
   const copy = () => { navigator.clipboard?.writeText(`Objet : ${draft.subject}\n\n${draft.body}`).then(() => alert('Brouillon copié dans le presse-papier')) }
   const mailto = () => { window.location.href = `mailto:${enterprise.email || ''}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` }
   return (
     <AiFrame title="Rédiger un e-mail" onClose={onClose} footer={ready && <>
-      <button onClick={() => { setReady(false); setTimeout(() => setReady(true), 900) }} className="btn-secondary text-sm">↻ Autre version</button>
+      <button onClick={generate} className="btn-secondary text-sm">↻ Autre version</button>
       <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Annuler</button><button onClick={copy} className="btn-secondary">Copier</button><button onClick={mailto} className="btn-primary">Ouvrir dans Outlook</button></div>
     </>}>
       {!ready ? <Thinking label={`Lecture des ${actions.length} actions de la fiche, rédaction…`} /> : <div className="space-y-3">
-        <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">✨ Brouillon rédigé à partir de l'historique de la fiche (démo : gabarit sans IA). Relisez et modifiez avant d'envoyer.</div>
+        <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">✨ {source}. Relisez et modifiez avant d'envoyer.</div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Objet</label><input className="input-field" value={draft.subject} onChange={e => setDraft(d => ({ ...d, subject: e.target.value }))} /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Message</label><textarea className="input-field font-sans" rows={14} value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} /></div>
       </div>}
@@ -956,11 +965,17 @@ function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, onC
 }
 function AiBriefModal({ enterprise, actions, interlocuteurs, profiles, onClose, onSaisir }) {
   const [ready, setReady] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setReady(true), 900); return () => clearTimeout(t) }, [])
-  const b = ready ? briefBeforeCall({ enterprise, actions, interlocuteurs, profiles }) : null
+  const [b, setB] = useState(null)
+  const [source, setSource] = useState('')
+  useEffect(() => { (async () => {
+    const res = await aiRequest('brief', buildContext({ enterprise, actions, interlocuteurs, profile: profiles.find(p => p.id === enterprise.assigned_to) }))
+    if (res?.result?.qui) { setB({ ...res.result, savoir: [].concat(res.result.savoir || []), demander: [].concat(res.result.demander || []) }); setSource(`${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus`) }
+    else { await new Promise(r => setTimeout(r, 800)); setB(briefBeforeCall({ enterprise, actions, interlocuteurs, profiles })); setSource('Gabarit local (IA indisponible)') }
+    setReady(true)
+  })() }, [])
   return (
     <AiFrame title="Brief avant l'appel" onClose={onClose} footer={ready && <>
-      <span className="text-xs text-gray-400">Généré à l'instant</span>
+      <span className="text-xs text-gray-400">{source}</span>
       <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Fermer</button><button onClick={onSaisir} className="btn-primary">Saisir l'appel</button></div>
     </>}>
       {!ready ? <Thinking label="Résumé de l'historique…" /> : <div className="space-y-3 text-sm text-gray-700">
@@ -977,7 +992,13 @@ function FreeTextBox({ onFill }) {
   const [txt, setTxt] = useState('')
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState('')
-  const go = () => { if (!txt.trim()) return; setBusy(true); setNote('✨ Analyse…'); setTimeout(() => { onFill(parseFreeText(txt)); setBusy(false); setNote('✨ Formulaire rempli à partir du texte — vérifiez avant d\'enregistrer') }, 800) }
+  const go = async () => {
+    if (!txt.trim()) return; setBusy(true); setNote('✨ Analyse…')
+    const res = await aiRequest('parse', txt)
+    if (res?.result?.action_type) { onFill({ ...res.result, comments: res.result.comments || txt }); setNote(`✨ Formulaire rempli par ${res.model} — vérifiez avant d'enregistrer`) }
+    else { await new Promise(r => setTimeout(r, 600)); onFill(parseFreeText(txt)); setNote('✨ Formulaire rempli (gabarit local, IA indisponible) — vérifiez avant d\'enregistrer') }
+    setBusy(false)
+  }
   return (
     <div className="rounded-xl border border-dashed border-violet-300 bg-violet-50 p-3">
       <label className="block text-sm font-medium text-violet-800 mb-1">✨ Saisie libre — décrivez l'échange, le formulaire se remplit</label>

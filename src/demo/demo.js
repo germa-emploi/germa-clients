@@ -6,6 +6,41 @@
 
 export const DEMO_MODE = true
 
+// URL du Worker "assistant IA" (voir worker-ia/worker.js). Vide → gabarits locaux uniquement.
+export const AI_WORKER_URL = 'https://germaclients-ia.old-cake-a2b6.workers.dev'
+
+// Appel du Worker. Renvoie null si pas d'URL ou en cas d'erreur (les composants retombent sur les gabarits).
+export async function aiRequest(task, context) {
+  if (!AI_WORKER_URL) return null
+  try {
+    const r = await fetch(AI_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task, context }) })
+    const data = await r.json()
+    if (!r.ok || !data?.result || data.result.raw) { console.warn('IA:', data?.error || data?.result?.raw); return null }
+    return data
+  } catch (e) { console.warn('IA indisponible :', e); return null }
+}
+
+const fmtFull = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
+// Contexte textuel envoyé à l'IA — le même que celui montré lors du POC
+export function buildContext({ enterprise, actions = [], interlocuteurs = [], profile, sector, kind }) {
+  const sorted = [...actions].sort((a, b) => new Date(a.performed_at) - new Date(b.performed_at))
+  const lines = [
+    `Entreprise : ${enterprise.name} — ${enterprise.city || '?'} (${enterprise.department || '?'})${sector ? ` — secteur ${sector}` : ''}${enterprise.description_activite ? ` — ${enterprise.description_activite}` : ''}`,
+    `Statut : ${enterprise.status === 'client' ? `client${enterprise.converted_at ? ` depuis le ${fmtFull(enterprise.converted_at)}` : ''}` : 'prospect'} — commercial : ${profile?.full_name || '?'}`,
+  ]
+  const named = interlocuteurs.filter(i => i.name && !/^a d[ée]finir$/i.test(i.name.trim()))
+  if (named.length) lines.push(`Interlocuteur(s) : ${named.map(i => `${i.name}${i.fonction && !/^a d[ée]finir$/i.test(i.fonction) ? ` (${i.fonction})` : ''}`).join(', ')}`)
+  else if (enterprise.contact_name) lines.push(`Interlocuteur : ${enterprise.contact_name}`)
+  if (enterprise.proposition_envoyee_at) lines.push(`Proposition commerciale envoyée le ${fmtFull(enterprise.proposition_envoyee_at)}${enterprise.proposition_signee_at ? `, signée le ${fmtFull(enterprise.proposition_signee_at)}` : ''}`)
+  if (enterprise.notes) lines.push(`Notes : ${enterprise.notes}`)
+  lines.push(sorted.length ? 'Historique (du plus ancien au plus récent) :' : 'Historique : aucune action')
+  sorted.forEach(a => lines.push(`${fmtFull(a.performed_at)} ${a.action_type.toLowerCase()} — ${a.result || ''}${a.need_identified ? ` — besoin identifié${a.need_type ? ` : ${a.need_type}` : ''}` : ''}${a.next_action ? ` — prochaine étape : ${a.next_action}${a.next_action_date ? ` le ${fmtFull(a.next_action_date)}` : ''}` : ''}${a.comments ? ` — ${a.comments.replace(/\n+/g, ' / ')}` : ''}`))
+  const last = sorted[sorted.length - 1]
+  if (last?.next_action_date) lines.push(`Relance prévue : ${fmtFull(last.next_action_date)}`)
+  if (kind) lines.push(`Type de mail demandé : ${kind}`)
+  return lines.join('\n')
+}
+
 const BLOCKED = ['insert', 'update', 'upsert', 'delete']
 
 function toast(msg) {
