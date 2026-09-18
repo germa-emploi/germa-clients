@@ -22,6 +22,7 @@ async function clearRelanceFlagIfClosing(enterpriseId, result) {
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
 import { draftEmail, briefBeforeCall, parseFreeText, aiRequest, buildContext } from '../demo/demo'
+import Flames from '../components/Flames'
 
 export default function EnterpriseDetail() {
   const { id } = useParams()
@@ -29,6 +30,7 @@ export default function EnterpriseDetail() {
   const { profile, isDirection } = useAuth()
   const [enterprise, setEnterprise] = useState(null)
   const [showMail, setShowMail] = useState(false)
+  const [heat, setHeat] = useState(null)
   const [showBrief, setShowBrief] = useState(false)
   const [actions, setActions] = useState([])
   const [sectors, setSectors] = useState([])
@@ -49,6 +51,7 @@ export default function EnterpriseDetail() {
   useEffect(() => { loadData() }, [id])
 
   async function loadData() {
+    supabase.from('ia_scores').select('*').eq('enterprise_id', id).maybeSingle().then(({ data }) => setHeat(data || null))
     setLoading(true)
     const [entRes, actData, secData, profData, interData] = await Promise.all([
       supabase.from('enterprises').select('*').eq('id', id).single(),
@@ -132,7 +135,11 @@ export default function EnterpriseDetail() {
                 <h1 className="font-display font-bold text-xl sm:text-2xl text-gray-900">{enterprise.name}</h1>
                 <span className={`badge ${statusColor.bg} ${statusColor.text}`}>{statusColor.label}</span>
                 {enterprise.a_relancer && <span className="badge bg-amber-50 text-amber-700">🔔 À relancer</span>}
+                {heat && enterprise.status === 'prospect' && <Flames score={heat.score} size="text-base" />}
               </div>
+              {heat && enterprise.status === 'prospect' && (
+                <p className="text-sm text-gray-600 mt-1.5"><span className="text-violet-700 font-medium">✨ Chaleur {heat.score}/5</span> — {heat.reason} <span className="text-xs text-gray-400">(calculé le {formatDate(heat.computed_at)})</span></p>
+              )}
 
               {/* Proposition badges — graphiques */}
               {enterprise.status === 'prospect' && hasProposition && (
@@ -369,7 +376,6 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-xl">{error}</div>}
-          <FreeTextBox onFill={(v) => setForm(f => ({ ...f, ...v, channel: v.action_type }))} />
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Date de l'action *</label><input type="date" value={form.performed_date} max={todayISO()} onChange={e => update('performed_date', e.target.value)} className="input-field" required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'échange *</label><select value={form.action_type} onChange={e => update('action_type', e.target.value)} className="select-field">{ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>

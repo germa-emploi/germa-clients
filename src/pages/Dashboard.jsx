@@ -13,7 +13,6 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { formatDate, RESULT_COLORS, STATUS_COLORS } from '../utils/constants'
 import { fetchAll } from '../utils/dataHelpers'
-import { weeklyPriorities, aiRequest } from '../demo/demo'
 
 const COLORS_MAIN = ['#2D6A4F', '#52B788', '#40916C', '#74C69D', '#95D5B2', '#B7E4C7', '#1B4332', '#D8F3DC', '#8ECAE6', '#FFB703']
 const PIE_RESULT = { 'À relancer': '#3b82f6', 'RDV pris': '#22c55e', 'Refus': '#ef4444', 'Sans suite': '#9ca3af', 'Signé': '#10b981' }
@@ -557,19 +556,19 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
 function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
   const [ready, setReady] = useState(false)
   const [res, setRes] = useState(null)
-  const [source, setSource] = useState('')
+  const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
   useEffect(() => { (async () => {
-    const local = weeklyPriorities({ enterprises, actions, profiles, limit: 30 })
-    const byId = Object.fromEntries(local.top.map(r => [r.id, r]))
-    const ctx = local.top.map(r => `id=${r.id} | ${r.name} (${r.city || '?'}) | ${r.nbActions} actions | dernier contact ${formatDate(r.lastDate)}${r.nextDate ? ` | relance prévue ${formatDate(r.nextDate)}` : ' | aucune relance planifiée'} | commentaires : ${(actions.filter(a => a.enterprise_id === r.id).sort((a, b) => new Date(b.performed_at) - new Date(a.performed_at)).slice(0, 3).map(a => a.comments || '').join(' / ')).slice(0, 400)}`).join('\n')
-    const ai = await aiRequest('priorities', `Prospects candidats (présélection par mots-clés parmi ${local.total} fiches « À relancer ») :\n${ctx}`)
-    if (ai?.result?.top?.length) {
-      setRes({ total: local.total, top: ai.result.top.filter(t => byId[t.id]).map(t => ({ ...byId[t.id], stars: Math.max(1, Math.min(5, +t.stars || 3)), why: t.why })), excluded: ai.result.excluded || [] })
-      setSource(`Classement par ${ai.model} — ${ai.usage?.input_tokens ?? '?'} tokens lus`)
-    } else { await new Promise(r => setTimeout(r, 1000)); setRes({ total: local.total, top: local.top.slice(0, 10), excluded: [] }); setSource('Classement par mots-clés (gabarit local, IA indisponible)') }
+    const { data } = await supabase.from('ia_scores').select('*').gte('score', 2)
+    const lastByEnt = {}
+    actions.forEach(a => { if (!lastByEnt[a.enterprise_id] || a.performed_at > lastByEnt[a.enterprise_id].performed_at) lastByEnt[a.enterprise_id] = a })
+    const ents = Object.fromEntries(enterprises.map(e => [e.id, e]))
+    const rows = (data || []).map(sc => ({ sc, e: ents[sc.enterprise_id], last: lastByEnt[sc.enterprise_id] }))
+      .filter(r => r.e && r.e.status === 'prospect')
+      .sort((a, b) => b.sc.score - a.sc.score || ((b.last?.performed_at || '') > (a.last?.performed_at || '') ? 1 : -1))
+    setRes({ total: (data || []).length, top: rows.slice(0, 15).map(r => ({ id: r.e.id, name: r.e.name, city: r.e.city, commercial: prof[r.e.assigned_to] || '—', stars: r.sc.score, why: r.sc.reason, lastDate: r.last?.performed_at, nextDate: r.last?.next_action_date, computed: r.sc.computed_at })) })
     setReady(true)
   })() }, [])
-  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
+  const stars = (n) => <span className="inline-flex items-center gap-0.5 text-sm" title={`Chaleur : ${n}/5`}>{[1, 2, 3, 4, 5].map(i => <span key={i} className={i <= n ? '' : 'opacity-20 grayscale'}>🔥</span>)}</span>
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
@@ -578,27 +577,24 @@ function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
           <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
         </div>
         <div className="p-6">
-          {!ready ? <div className="flex items-center justify-center gap-2 py-10 text-violet-700 text-sm"><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /> Lecture des relances et des commentaires…</div> : <>
-            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ {res.top.length} prospects à travailler en priorité, choisis parmi {res.total} fiches « À relancer » — y compris celles sans date de relance. {source}.</div>
+          {!ready ? <div className="py-10 text-center text-violet-700 text-sm">Chargement des scores…</div> : <>
+            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ Les {res.top.length} prospects les plus chauds, d'après les scores calculés chaque nuit par l'assistant sur les fiches modifiées ({res.total} prospects notés à 2 flammes ou plus).</div>
             <div className="divide-y divide-gray-100">
               {res.top.map(r => (
                 <div key={r.id} className="py-3 flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap"><span>{r.name}</span><span className="text-amber-500 tracking-wider text-sm">{stars(r.stars)}</span></div>
-                    <div className="text-xs text-gray-500 mt-0.5">{r.city || '—'} · {r.commercial} · {r.nbActions} action{r.nbActions > 1 ? 's' : ''} · dernier contact {formatDate(r.lastDate)}{r.nextDate ? ` · relance ${formatDate(r.nextDate)}` : ' · aucune relance planifiée'}</div>
+                    <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap"><span>{r.name}</span>{stars(r.stars)}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">{r.city || '—'} · {r.commercial} · dernier contact {formatDate(r.lastDate)}{r.nextDate ? ` · relance ${formatDate(r.nextDate)}` : ' · aucune relance planifiée'} · noté le {formatDate(r.computed)}</div>
                     <div className="text-sm text-gray-600 mt-1">{r.why}</div>
                   </div>
                   <button onClick={() => onOpen(r.id)} className="flex-shrink-0 text-sm font-medium px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100">Ouvrir</button>
                 </div>
               ))}
-              {res.top.length === 0 && <div className="py-8 text-center text-gray-400 text-sm">Aucun prospect « À relancer » avec un signal d'intérêt.</div>}
+              {res.top.length === 0 && <div className="py-8 text-center text-gray-400 text-sm">Aucun score disponible pour l'instant.</div>}
             </div>
           </>}
         </div>
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">
-          <span className="text-xs text-gray-500">{ready && res.excluded?.length ? `Écartés : ${res.excluded.slice(0, 4).map(x => (enterprises.find(e => e.id === x.id)?.name || x.id) + (x.why ? ` (${x.why})` : '')).join(' · ')}` : ''}</span>
-          <button onClick={onClose} className="btn-secondary">Fermer</button>
-        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
       </div>
     </div>
   )

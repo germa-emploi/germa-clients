@@ -6,6 +6,7 @@ import {
   Search, Plus, Filter, Building2, X, MapPin, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft
 } from 'lucide-react'
 import { DEPARTMENTS, STATUS_COLORS, formatDate, isHiddenAccount } from '../utils/constants'
+import Flames from '../components/Flames'
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES } from '../utils/activityLog'
 
@@ -30,6 +31,7 @@ export default function Enterprises({ filterStatus }) {
   const [profiles, setProfiles] = useState([])
   const [actions, setActions] = useState([])
   const [interlocuteurs, setInterlocuteurs] = useState([])
+  const [scores, setScores] = useState({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState(saved.search ?? '')
   const [filterSector, setFilterSector] = useState(saved.filterSector ?? '')
@@ -65,18 +67,20 @@ export default function Enterprises({ filterStatus }) {
 
   async function loadData() {
     setLoading(true)
-    const [entData, secData, profData, actData, interData] = await Promise.all([
+    const [entData, secData, profData, actData, interData, scoreData] = await Promise.all([
       fetchAll('enterprises', { order: { column: 'created_at', ascending: false } }),
       fetchAll('sectors', { order: { column: 'name', ascending: true } }),
       fetchAll('profiles', { filters: { is_active: true } }),
       fetchAll('actions', { order: { column: 'performed_at', ascending: false } }),
       fetchAll('interlocuteurs'),
+      fetchAll('ia_scores'),
     ])
     setEnterprises(entData)
     setSectors(secData)
     setProfiles(profData)
     setActions(actData)
     setInterlocuteurs(interData)
+    setScores(Object.fromEntries((scoreData || []).map(s => [s.enterprise_id, s])))
     setLoading(false)
   }
 
@@ -133,6 +137,9 @@ export default function Enterprises({ filterStatus }) {
         case 'name':
           va = a.name.toLowerCase(); vb = b.name.toLowerCase()
           break
+        case 'heat':
+          va = scores[a.id]?.score || 0; vb = scores[b.id]?.score || 0
+          break
         case 'sector':
           va = sectors.find(s => s.id === a.sector_id)?.name?.toLowerCase() || ''
           vb = sectors.find(s => s.id === b.sector_id)?.name?.toLowerCase() || ''
@@ -171,7 +178,7 @@ export default function Enterprises({ filterStatus }) {
       return 0
     })
     return arr
-  }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, profiles])
+  }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, profiles, scores])
 
   function toggleSort(col) {
     if (sortColumn === col) {
@@ -341,6 +348,7 @@ export default function Enterprises({ filterStatus }) {
                 <tr className="bg-gray-50 border-b border-gray-100">
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 w-8">🔔</th>
                   <Th label="Entreprise" col="name" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} />
+                  {isProspects && <Th label="Chaleur" col="heat" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} />}
                   <Th label="Secteur" col="sector" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} />
                   <Th label="Dpt" col="department" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
                   <Th label="Prop." col="proposition" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
@@ -369,6 +377,7 @@ export default function Enterprises({ filterStatus }) {
                         </div>
                         {ent.city && <span className="text-xs text-gray-400 block">{ent.city}</span>}
                       </td>
+                      {isProspects && <td className="px-4 py-3 whitespace-nowrap">{scores[ent.id] ? <Flames score={scores[ent.id].score} title={scores[ent.id].reason} /> : <span className="text-gray-300 text-xs">—</span>}</td>}
                       <td className="px-4 py-3 text-gray-600">{sector?.name || '—'}</td>
                       <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">{ent.department || '—'}</td>
                       <td className="px-4 py-3 hidden sm:table-cell">
