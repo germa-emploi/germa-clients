@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { makeReadOnly } from '../demo/demo'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -21,10 +22,10 @@ try {
 } catch (e) { /* ignore */ }
 
 // Client Supabase SANS persistence — pas de localStorage, pas de refresh automatique au démarrage
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = makeReadOnly(createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: false,
     autoRefreshToken: true,
     detectSessionInUrl: false,
   }
-})
+}))

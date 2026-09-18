@@ -62,6 +62,9 @@ export default function Layout() {
             </div>
             <h1 className="font-display font-bold text-germa-900 text-lg leading-tight">GermaClients</h1>
             <p className="text-[10px] text-germa-600 uppercase tracking-widest font-medium">Activité Commerciale</p>
+            <div className="mt-3 w-full rounded-xl bg-violet-50 border border-violet-200 text-violet-800 text-[11px] px-3 py-2 leading-snug">
+              <span className="font-semibold">✨ Démo assistant IA</span> — copie en lecture seule : rien de ce que vous saisissez n'est enregistré. Les résultats « IA » sont simulés.
+            </div>
           </div>
 
           {/* Nav */}
@@ -146,6 +149,7 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="lg:pl-64 pt-16 lg:pt-0">
+        <div className="lg:hidden bg-violet-600 text-white text-xs text-center py-1.5 px-3">✨ Démo IA — lecture seule, résultats simulés</div>
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>

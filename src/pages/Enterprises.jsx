@@ -169,6 +169,13 @@ export default function Enterprises({ filterStatus }) {
     return arr
   }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, profiles])
 
+  function copyEmails() {
+    const mails = [...new Set(sorted.map(e => (e.email || '').trim()).filter(m => m.includes('@')))]
+    const missing = sorted.length - sorted.filter(e => (e.email || '').includes('@')).length
+    if (!mails.length) { alert('Aucune adresse e-mail parmi les entreprises affichées.'); return }
+    navigator.clipboard?.writeText(mails.join('; ')).then(() => alert(`${mails.length} adresse${mails.length > 1 ? 's' : ''} copiée${mails.length > 1 ? 's' : ''} (séparées par « ; »)${missing ? ` · ${missing} entreprise${missing > 1 ? 's' : ''} sans e-mail` : ''}`))
+  }
+
   function toggleSort(col) {
     if (sortColumn === col) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -210,18 +217,13 @@ export default function Enterprises({ filterStatus }) {
           <h1 className="font-display font-bold text-2xl text-gray-900">{title}</h1>
           <p className="text-gray-500 text-sm">{sorted.length} {title.toLowerCase()}</p>
         </div>
-        {isProspects && (
-          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2 self-start">
+        <div className="flex gap-2 self-start">
+          <button onClick={copyEmails} className="btn-secondary flex items-center gap-2 text-sm" title="Copie les e-mails des entreprises affichées, séparés par des points-virgules">📋 Copier les e-mails</button>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
             <Plus size={18} />
-            <span>Nouveau prospect</span>
+            <span>{isProspects ? 'Nouveau prospect' : 'Nouveau client'}</span>
           </button>
-        )}
-        {isClients && (
-          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2 self-start">
-            <Plus size={18} />
-            <span>Nouveau client</span>
-          </button>
-        )}
+        </div>
       </div>
 
       {/* Search + Filters */}

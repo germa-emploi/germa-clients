@@ -1,4 +1,4 @@
-export const APP_DISPLAY_VERSION = '2.10.0'
+export const APP_DISPLAY_VERSION = '2.10.0-démo'
 
 export const CHANGELOG = [
   {

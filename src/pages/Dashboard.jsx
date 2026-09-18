@@ -13,6 +13,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { formatDate, RESULT_COLORS, STATUS_COLORS } from '../utils/constants'
 import { fetchAll } from '../utils/dataHelpers'
+import { weeklyPriorities } from '../demo/demo'
 
 const COLORS_MAIN = ['#2D6A4F', '#52B788', '#40916C', '#74C69D', '#95D5B2', '#B7E4C7', '#1B4332', '#D8F3DC', '#8ECAE6', '#FFB703']
 const PIE_RESULT = { 'À relancer': '#3b82f6', 'RDV pris': '#22c55e', 'Refus': '#ef4444', 'Sans suite': '#9ca3af', 'Signé': '#10b981' }
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
+  const [showPrio, setShowPrio] = useState(false)
   const now = new Date()
   // KPI card filter for Actions
   const [kpiActYear, setKpiActYear] = useState(now.getFullYear())
@@ -187,10 +189,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display font-bold text-2xl text-gray-900">Bonjour {profile?.full_name?.split(' ')[0]} 👋</h1>
-        <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de la prospection</p>
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display font-bold text-2xl text-gray-900">Bonjour {profile?.full_name?.split(' ')[0]} 👋</h1>
+          <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de la prospection</p>
+        </div>
+        <button onClick={() => setShowPrio(true)} className="self-start flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Priorités de la semaine</button>
       </div>
+      {showPrio && <PrioritiesModal enterprises={enterprises} actions={actions} profiles={profiles} onClose={() => setShowPrio(false)} onOpen={(id) => navigate(`/entreprise/${id}`)} />}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -539,6 +545,46 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
             </div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+
+// ============================================================
+// DÉMO — Priorités de la semaine (classement simulé, sans API)
+// ============================================================
+function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
+  const [ready, setReady] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setReady(true), 1200); return () => clearTimeout(t) }, [])
+  const res = ready ? weeklyPriorities({ enterprises, actions, profiles, limit: 10 }) : null
+  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-display font-semibold text-lg text-violet-800">✨ Priorités de la semaine</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="p-6">
+          {!ready ? <div className="flex items-center justify-center gap-2 py-10 text-violet-700 text-sm"><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /> Lecture des relances et des commentaires…</div> : <>
+            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ {res.top.length} prospects à travailler en priorité, choisis parmi {res.total} fiches « À relancer » — y compris celles sans date de relance (démo : classement par mots-clés, sans IA).</div>
+            <div className="divide-y divide-gray-100">
+              {res.top.map(r => (
+                <div key={r.id} className="py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap"><span>{r.name}</span><span className="text-amber-500 tracking-wider text-sm">{stars(r.stars)}</span></div>
+                    <div className="text-xs text-gray-500 mt-0.5">{r.city || '—'} · {r.commercial} · {r.nbActions} action{r.nbActions > 1 ? 's' : ''} · dernier contact {formatDate(r.lastDate)}{r.nextDate ? ` · relance ${formatDate(r.nextDate)}` : ' · aucune relance planifiée'}</div>
+                    <div className="text-sm text-gray-600 mt-1">{r.why}</div>
+                  </div>
+                  <button onClick={() => onOpen(r.id)} className="flex-shrink-0 text-sm font-medium px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100">Ouvrir</button>
+                </div>
+              ))}
+              {res.top.length === 0 && <div className="py-8 text-center text-gray-400 text-sm">Aucun prospect « À relancer » avec un signal d'intérêt.</div>}
+            </div>
+          </>}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
       </div>
     </div>
   )

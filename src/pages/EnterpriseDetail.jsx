@@ -21,12 +21,15 @@ async function clearRelanceFlagIfClosing(enterpriseId, result) {
 }
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
+import { draftEmail, briefBeforeCall, parseFreeText } from '../demo/demo'
 
 export default function EnterpriseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { profile, isDirection } = useAuth()
   const [enterprise, setEnterprise] = useState(null)
+  const [showMail, setShowMail] = useState(false)
+  const [showBrief, setShowBrief] = useState(false)
   const [actions, setActions] = useState([])
   const [sectors, setSectors] = useState([])
   const [profiles, setProfiles] = useState([])
@@ -277,6 +280,8 @@ export default function EnterpriseDetail() {
       {/* Actions */}
       <div className="flex items-center justify-between">
         <h2 className="font-display font-semibold text-lg text-gray-900">Historique des actions ({actions.length})</h2>
+        <button onClick={() => setShowBrief(true)} className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Brief avant l'appel</button>
+        <button onClick={() => setShowMail(true)} className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Rédiger un e-mail</button>
         <button onClick={() => setShowAddAction(true)} className="btn-primary flex items-center gap-2 text-sm"><Plus size={16} /> Nouvelle action</button>
       </div>
       {actions.length === 0 ? (
@@ -328,6 +333,8 @@ export default function EnterpriseDetail() {
 
       {/* Modals */}
       {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
+      {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} onClose={() => setShowMail(false)} />}
+      {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
       {editingAction && <EditActionModal action={editingAction} enterpriseName={enterprise.name} onClose={() => setEditingAction(null)} onSaved={() => { setEditingAction(null); loadData() }} />}
       {showEditEnterprise && <EditEnterpriseModal enterprise={enterprise} sectors={sectors} profiles={profiles} onClose={() => setShowEditEnterprise(false)} onSaved={() => { setShowEditEnterprise(false); loadData() }} />}
       {showAddInterlocuteur && <AddInterlocuteurModal enterpriseId={id} onClose={() => setShowAddInterlocuteur(false)} onCreated={() => { setShowAddInterlocuteur(false); loadData() }} />}
@@ -362,6 +369,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {error && <div className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-xl">{error}</div>}
+          <FreeTextBox onFill={(v) => setForm(f => ({ ...f, ...v, channel: v.action_type }))} />
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Date de l'action *</label><input type="date" value={form.performed_date} max={todayISO()} onChange={e => update('performed_date', e.target.value)} className="input-field" required /></div>
           <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'échange *</label><select value={form.action_type} onChange={e => update('action_type', e.target.value)} className="select-field">{ACTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}</select></div>
@@ -902,6 +910,79 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+
+// ============================================================
+// DÉMO — composants "assistant IA" (résultats simulés, sans API)
+// ============================================================
+function AiFrame({ title, onClose, children, footer }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-display font-semibold text-lg text-violet-800">✨ {title}</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="p-6">{children}</div>
+        {footer && <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">{footer}</div>}
+      </div>
+    </div>
+  )
+}
+function Thinking({ label }) {
+  return <div className="flex items-center justify-center gap-2 py-10 text-violet-700 text-sm"><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse [animation-delay:150ms]" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse [animation-delay:300ms]" /> {label}</div>
+}
+function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, onClose }) {
+  const [ready, setReady] = useState(false)
+  const [draft, setDraft] = useState(null)
+  useEffect(() => { const t = setTimeout(() => { setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setReady(true) }, 1100); return () => clearTimeout(t) }, [])
+  const copy = () => { navigator.clipboard?.writeText(`Objet : ${draft.subject}\n\n${draft.body}`).then(() => alert('Brouillon copié dans le presse-papier')) }
+  const mailto = () => { window.location.href = `mailto:${enterprise.email || ''}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` }
+  return (
+    <AiFrame title="Rédiger un e-mail" onClose={onClose} footer={ready && <>
+      <button onClick={() => { setReady(false); setTimeout(() => setReady(true), 900) }} className="btn-secondary text-sm">↻ Autre version</button>
+      <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Annuler</button><button onClick={copy} className="btn-secondary">Copier</button><button onClick={mailto} className="btn-primary">Ouvrir dans Outlook</button></div>
+    </>}>
+      {!ready ? <Thinking label={`Lecture des ${actions.length} actions de la fiche, rédaction…`} /> : <div className="space-y-3">
+        <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2">✨ Brouillon rédigé à partir de l'historique de la fiche (démo : gabarit sans IA). Relisez et modifiez avant d'envoyer.</div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Objet</label><input className="input-field" value={draft.subject} onChange={e => setDraft(d => ({ ...d, subject: e.target.value }))} /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Message</label><textarea className="input-field font-sans" rows={14} value={draft.body} onChange={e => setDraft(d => ({ ...d, body: e.target.value }))} /></div>
+      </div>}
+    </AiFrame>
+  )
+}
+function AiBriefModal({ enterprise, actions, interlocuteurs, profiles, onClose, onSaisir }) {
+  const [ready, setReady] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setReady(true), 900); return () => clearTimeout(t) }, [])
+  const b = ready ? briefBeforeCall({ enterprise, actions, interlocuteurs, profiles }) : null
+  return (
+    <AiFrame title="Brief avant l'appel" onClose={onClose} footer={ready && <>
+      <span className="text-xs text-gray-400">Généré à l'instant</span>
+      <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Fermer</button><button onClick={onSaisir} className="btn-primary">Saisir l'appel</button></div>
+    </>}>
+      {!ready ? <Thinking label="Résumé de l'historique…" /> : <div className="space-y-3 text-sm text-gray-700">
+        <p><span className="font-semibold text-gray-900">Qui.</span> {b.qui}</p>
+        <p><span className="font-semibold text-gray-900">Où on en est.</span> {b.ou}</p>
+        <div><span className="font-semibold text-gray-900">Ce qu'il faut savoir.</span><ul className="list-disc pl-5 mt-1 space-y-1">{b.savoir.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+        <p><span className="font-semibold text-gray-900">Angle conseillé.</span> {b.angle}</p>
+        <div><span className="font-semibold text-gray-900">À demander.</span><ul className="list-disc pl-5 mt-1 space-y-1">{b.demander.map((s, i) => <li key={i}>{s}</li>)}</ul></div>
+      </div>}
+    </AiFrame>
+  )
+}
+function FreeTextBox({ onFill }) {
+  const [txt, setTxt] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState('')
+  const go = () => { if (!txt.trim()) return; setBusy(true); setNote('✨ Analyse…'); setTimeout(() => { onFill(parseFreeText(txt)); setBusy(false); setNote('✨ Formulaire rempli à partir du texte — vérifiez avant d\'enregistrer') }, 800) }
+  return (
+    <div className="rounded-xl border border-dashed border-violet-300 bg-violet-50 p-3">
+      <label className="block text-sm font-medium text-violet-800 mb-1">✨ Saisie libre — décrivez l'échange, le formulaire se remplit</label>
+      <textarea value={txt} onChange={e => setTxt(e.target.value)} rows={2} placeholder="Ex. : appelé M. Muller, besoin de 2 manœuvres à partir du lundi 28 septembre pour une semaine, il renvoie les horaires par mail, rappeler jeudi si rien reçu" className="w-full bg-transparent text-sm outline-none resize-y placeholder:text-violet-300" />
+      <div className="flex items-center justify-between mt-1"><span className="text-xs text-violet-700">{note}</span><button type="button" disabled={busy} onClick={go} className="text-sm font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">✨ Remplir le formulaire</button></div>
     </div>
   )
 }
