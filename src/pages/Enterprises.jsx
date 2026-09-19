@@ -36,6 +36,8 @@ export default function Enterprises({ filterStatus }) {
   const [filterCommercial, setFilterCommercial] = useState(saved.filterCommercial ?? '')
   const [showFilters, setShowFilters] = useState(saved.showFilters ?? false)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showMailing, setShowMailing] = useState(false)
+  const [interlocuteurs, setInterlocuteurs] = useState([])
   const [filterRelance, setFilterRelance] = useState(saved.filterRelance ?? false)
   const [filterProposition, setFilterProposition] = useState(saved.filterProposition ?? '')
   const [filterDateYear, setFilterDateYear] = useState(saved.filterDateYear ?? '')
@@ -63,16 +65,18 @@ export default function Enterprises({ filterStatus }) {
 
   async function loadData() {
     setLoading(true)
-    const [entData, secData, profData, actData] = await Promise.all([
+    const [entData, secData, profData, actData, interData] = await Promise.all([
       fetchAll('enterprises', { order: { column: 'created_at', ascending: false } }),
       fetchAll('sectors', { order: { column: 'name', ascending: true } }),
       fetchAll('profiles', { filters: { is_active: true } }),
       fetchAll('actions', { order: { column: 'performed_at', ascending: false } }),
+      fetchAll('interlocuteurs'),
     ])
     setEnterprises(entData)
     setSectors(secData)
     setProfiles(profData)
     setActions(actData)
+    setInterlocuteurs(interData)
     setLoading(false)
   }
 
@@ -210,18 +214,13 @@ export default function Enterprises({ filterStatus }) {
           <h1 className="font-display font-bold text-2xl text-gray-900">{title}</h1>
           <p className="text-gray-500 text-sm">{sorted.length} {title.toLowerCase()}</p>
         </div>
-        {isProspects && (
-          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2 self-start">
+        <div className="flex gap-2 self-start">
+          <button onClick={() => setShowMailing(true)} className="btn-secondary flex items-center gap-2 text-sm" title="Choisir les adresses de la liste affichée et les copier pour un mailing">📋 Copier les e-mails</button>
+          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
             <Plus size={18} />
-            <span>Nouveau prospect</span>
+            <span>{isProspects ? 'Nouveau prospect' : 'Nouveau client'}</span>
           </button>
-        )}
-        {isClients && (
-          <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2 self-start">
-            <Plus size={18} />
-            <span>Nouveau client</span>
-          </button>
-        )}
+        </div>
       </div>
 
       {/* Search + Filters */}
@@ -398,6 +397,7 @@ export default function Enterprises({ filterStatus }) {
       )}
 
       {/* Add Enterprise Modal */}
+      {showMailing && <MailingModal enterprises={sorted} interlocuteurs={interlocuteurs} title={title} onClose={() => setShowMailing(false)} />}
       {showAddModal && (
         <AddEnterpriseModal
           sectors={sectors}
@@ -523,6 +523,65 @@ function AddEnterpriseModal({ sectors, defaultStatus, onClose, onCreated }) {
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Mailing : choisir les entreprises de la liste filtrée et copier leurs e-mails
+// ============================================================
+function MailingModal({ enterprises, interlocuteurs = [], title, onClose }) {
+  // Une ligne par adresse connue : e-mail de la fiche + e-mails des interlocuteurs (sans doublon)
+  const rows = useMemo(() => {
+    const out = []
+    const byEnt = {}
+    interlocuteurs.forEach(i => { (byEnt[i.enterprise_id] = byEnt[i.enterprise_id] || []).push(i) })
+    enterprises.forEach(e => {
+      const seen = new Set()
+      const add = (email, who) => { const m = (email || '').trim().toLowerCase(); if (!m.includes('@') || seen.has(m)) return; seen.add(m); out.push({ id: `${e.id}|${m}`, entId: e.id, name: e.name, city: e.city, email: m, who }) }
+      add(e.email, e.contact_name && !/^a d[ée]finir$/i.test(e.contact_name) ? e.contact_name : '')
+      ;(byEnt[e.id] || []).forEach(i => add(i.email, i.name && !/^[-–]?$/.test(i.name.trim()) && !/^a d[ée]finir$/i.test(i.name) ? i.name : ''))
+    })
+    return out
+  }, [enterprises, interlocuteurs])
+  const withoutMail = enterprises.filter(e => !rows.some(r => r.entId === e.id)).length
+  const [checked, setChecked] = useState(() => new Set(rows.map(r => r.id)))
+  const [q, setQ] = useState('')
+  const [done, setDone] = useState('')
+  const visible = rows.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase()) || (r.city || '').toLowerCase().includes(q.toLowerCase()) || (r.who || '').toLowerCase().includes(q.toLowerCase()))
+  const toggle = (id) => setChecked(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
+  const allVisible = visible.length > 0 && visible.every(r => checked.has(r.id))
+  const toggleAll = () => setChecked(s => { const n = new Set(s); visible.forEach(r => allVisible ? n.delete(r.id) : n.add(r.id)); return n })
+  const selected = rows.filter(r => checked.has(r.id))
+  const copy = () => {
+    const mails = [...new Set(selected.map(r => r.email))]
+    navigator.clipboard?.writeText(mails.join('; ')).then(() => setDone(`${mails.length} adresse${mails.length > 1 ? 's' : ''} copiée${mails.length > 1 ? 's' : ''} — collez dans le champ Cci d'Outlook`))
+  }
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[92vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div><h2 className="font-display font-semibold text-lg">Copier les e-mails</h2><p className="text-xs text-gray-500">{title} · filtre en cours : {enterprises.length} entreprise{enterprises.length > 1 ? 's' : ''}{withoutMail ? `, dont ${withoutMail} sans e-mail` : ''}</p></div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="px-6 pt-4 flex items-center gap-3">
+          <div className="flex-1 flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2"><Search size={15} className="text-gray-400" /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Filtrer par nom ou ville…" className="bg-transparent text-sm outline-none flex-1" /></div>
+          <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer whitespace-nowrap"><input type="checkbox" checked={allVisible} onChange={toggleAll} className="w-4 h-4 accent-germa-700" /> Tout {allVisible ? 'décocher' : 'cocher'}</label>
+        </div>
+        <div className="px-6 py-3 overflow-y-auto flex-1 divide-y divide-gray-100">
+          {visible.map(r => (
+            <label key={r.id} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded-lg">
+              <input type="checkbox" checked={checked.has(r.id)} onChange={() => toggle(r.id)} className="w-4 h-4 accent-germa-700 flex-shrink-0" />
+              <div className="min-w-0 flex-1"><div className="text-sm font-medium text-gray-900 truncate">{r.name}{r.who ? <span className="font-normal text-gray-500"> — {r.who}</span> : ''}</div><div className="text-xs text-gray-500 truncate">{r.city || '—'} · {r.email}</div></div>
+            </label>
+          ))}
+          {visible.length === 0 && <div className="py-8 text-center text-sm text-gray-400">Aucune adresse e-mail{q ? ' pour cette recherche' : ' (ni sur les fiches, ni sur les interlocuteurs) dans la liste filtrée'}.</div>}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center justify-between gap-3">
+          <span className="text-sm text-gray-600">{done || `${selected.length} sélectionnée${selected.length > 1 ? 's' : ''} sur ${rows.length}`}</span>
+          <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Fermer</button><button onClick={copy} disabled={!selected.length} className="btn-primary disabled:opacity-50">Copier {selected.length} adresse{selected.length > 1 ? 's' : ''}</button></div>
+        </div>
       </div>
     </div>
   )

@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.10.0'
+export const APP_DISPLAY_VERSION = '2.11.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.11.0',
+    date: '2026-09-19',
+    changes: [
+      '📋 Copier les e-mails (listes prospects et clients) : choisir les adresses parmi la liste filtrée — e-mail de la fiche et des interlocuteurs, sans doublon — puis les copier séparées par « ; » pour un mailing en Cci',
+    ],
+  },
   {
     version: '2.10.0',
     date: '2026-09-18',
