@@ -190,11 +190,26 @@ function parseBoamp(json) {
     return { title, link: url, desc, date: get('dateparution', 'date_parution', 'datefindiffusion') }
   }).filter(i => i.title && i.link)
 }
-async function fetchFeeds(only) {
+async function fetchFeeds(only, days = 0) {
   const out = []; const report = []
+  const H = { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GermaClientsVeille/1.0)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, application/json, */*' }, cf: { cacheTtl: 0 } }
   for (const f of FEEDS.filter(f => !only || only.includes(f.name))) {
     try {
-      const r = await fetch(f.url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GermaClientsVeille/1.0)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, cf: { cacheTtl: 0 } })
+      if (f.type === 'boamp' && days > 0) {
+        // rattrapage : tous les avis depuis N jours, par pages de 100
+        const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10)
+        const dep = f.name.includes('68') ? '68' : '67'
+        let items = []
+        for (let offset = 0; offset < 1000; offset += 100) {
+          const url = `https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records?refine=code_departement%3A%22${dep}%22&where=dateparution%3E%3D%22${since}%22&order_by=dateparution%20desc&limit=100&offset=${offset}`
+          const r = await fetch(url, H); if (!r.ok) { report.push({ source: f.name, status: r.status, items: items.length }); break }
+          const page = parseBoamp(await r.text()); items = items.concat(page)
+          if (page.length < 100) { report.push({ source: f.name, status: 200, items: items.length }); break }
+        }
+        items.forEach(i => out.push({ ...i, source: f.name }))
+        continue
+      }
+      const r = await fetch(f.url, H)
       const txt = r.ok ? await r.text() : ''
       const items = !r.ok ? [] : f.type === 'boamp' ? parseBoamp(txt) : parseFeed(txt)
       report.push({ source: f.name, status: r.status, items: items.length })
@@ -204,11 +219,11 @@ async function fetchFeeds(only) {
   return { items: out, report }
 }
 const normName = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\b(SARL|SAS|SA|EURL|EARL|SCEA|GAEC|SCI|ETS|ETABLISSEMENTS|ENTREPRISE|SOCIETE|GROUPE|ET FILS|FRERES|CIE|COMPAGNIE)\b/g, ' ').replace(/\s+/g, ' ').trim()
-async function veille(env, { dryRun = false, maxPistesArticles = 40 } = {}) {
-  const { items, report } = await fetchFeeds()
+async function veille(env, { dryRun = false, maxPistesArticles = 40, days = 0 } = {}) {
+  const { items, report } = await fetchFeeds(null, days)
   const out = { report, articles: items.length, mentions: 0, pistes: 0, errors: [], tokens: 0 }
   if (!items.length) return out
-  const since = new Date(Date.now() - 3 * 86400000)
+  const since = new Date(Date.now() - Math.max(3, days) * 86400000)
   const recent = items.filter(i => { const d = i.date ? new Date(i.date) : null; return !d || isNaN(d) || d >= since })
   const existing = await sbAll(env, 'ia_veille?select=url,kind,enterprise_id,company_name')
   const seen = new Set(existing.map(v => `${v.kind}|${v.url}|${v.enterprise_id || v.company_name || ''}`))
@@ -235,7 +250,8 @@ async function veille(env, { dryRun = false, maxPistesArticles = 40 } = {}) {
   // ---- pistes : articles récents non traités, par lots de 15 ----
   // articles déjà analysés pour les pistes (qu'ils aient donné quelque chose ou non)
   const vu = new Set((await sbAll(env, 'ia_veille_vu?select=url')).map(v => v.url))
-  const cands = recent.filter(i => !vu.has(i.link)).slice(0, maxPistesArticles)
+  const isBoampAppel = (i) => /BOAMP/i.test(i.source) && !/attribution|r[ée]sultat/i.test(i.title)
+  const cands = recent.filter(i => !vu.has(i.link) && (days === 0 || !isBoampAppel(i))).slice(0, days > 0 ? 400 : maxPistesArticles)
   if (dryRun) { out.pistesCandidats = cands.length; return out }
   const nameKeys = new Set(index.map(x => x.key))
   for (let i = 0; i < cands.length; i += 15) {
@@ -321,7 +337,7 @@ export default {
     if (['/veille', '/veille-test'].includes(new URL(request.url).pathname)) {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
       if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
-      try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test' })), { status: 200, headers }) }
+      try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test', days: Number(b.days) || 0 })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/daily') {
