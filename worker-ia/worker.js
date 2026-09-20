@@ -157,12 +157,10 @@ async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {})
 const FEEDS = [
   { name: 'DNA – Économie', url: 'https://www.dna.fr/economie/rss' },
   { name: "L'Alsace – Économie", url: 'https://www.lalsace.fr/economie/rss' },
-  { name: 'DNA – Bas-Rhin', url: 'https://www.dna.fr/edition-de-strasbourg/rss' },
-  { name: "L'Alsace – Haut-Rhin", url: 'https://www.lalsace.fr/edition-de-mulhouse/rss' },
   { name: 'Rue89 Strasbourg', url: 'https://www.rue89strasbourg.com/feed' },
-  { name: 'Eurométropole – actus', url: 'https://www.strasbourg.eu/rss' },
-  { name: 'BOAMP – 67', url: 'https://www.boamp.fr/avis/rss?departement=67' },
-  { name: 'BOAMP – 68', url: 'https://www.boamp.fr/avis/rss?departement=68' },
+  // BOAMP : API open data (opendatasoft, sans clé) — avis et attributions du 67 et du 68 (marchés clausés = insertion)
+  { name: 'BOAMP – 67', type: 'boamp', url: 'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records?where=dep%3D%2267%22&order_by=dateparution%20desc&limit=60' },
+  { name: 'BOAMP – 68', type: 'boamp', url: 'https://boamp-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/boamp/records?where=dep%3D%2268%22&order_by=dateparution%20desc&limit=60' },
 ]
 const strip = (s) => (s || '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
 function parseFeed(xml) {
@@ -177,13 +175,28 @@ function parseFeed(xml) {
   }
   return items
 }
+// BOAMP (opendatasoft) : un "article" par avis, texte = acheteur + objet + titulaires, lien vers l'avis
+function parseBoamp(json) {
+  let data; try { data = JSON.parse(json) } catch { return [] }
+  const rows = data.results || data.records || []
+  return rows.map(raw => {
+    const r = raw.record?.fields || raw.fields || raw
+    const get = (...keys) => { for (const k of keys) { const v = r[k]; if (v != null && v !== '') return Array.isArray(v) ? v.join(', ') : String(v) } return '' }
+    const objet = get('objet', 'intitule', 'titre', 'nomobjet'); const acheteur = get('nomacheteur', 'acheteur', 'nom_acheteur'); const titulaires = get('titulaire', 'titulaires', 'attributaire')
+    const nature = get('nature', 'typeavis', 'type_avis', 'famille'); const id = get('idweb', 'id', 'recordid')
+    const url = get('url_avis', 'urlavis', 'lien') || (id ? `https://www.boamp.fr/pages/avis/?q=idweb:${id}` : '')
+    const title = `${nature ? nature + ' — ' : ''}${acheteur ? acheteur + ' : ' : ''}${objet}`.slice(0, 250)
+    const desc = `${objet}${titulaires ? ` — Titulaire(s) : ${titulaires}` : ''}${get('descripteur_libelle', 'descripteurs') ? ` — ${get('descripteur_libelle', 'descripteurs')}` : ''}`.slice(0, 600)
+    return { title, link: url, desc, date: get('dateparution', 'date_parution', 'datefindiffusion') }
+  }).filter(i => i.title && i.link)
+}
 async function fetchFeeds(only) {
   const out = []; const report = []
   for (const f of FEEDS.filter(f => !only || only.includes(f.name))) {
     try {
       const r = await fetch(f.url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GermaClientsVeille/1.0)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, cf: { cacheTtl: 0 } })
       const txt = r.ok ? await r.text() : ''
-      const items = r.ok ? parseFeed(txt) : []
+      const items = !r.ok ? [] : f.type === 'boamp' ? parseBoamp(txt) : parseFeed(txt)
       report.push({ source: f.name, status: r.status, items: items.length })
       items.forEach(i => out.push({ ...i, source: f.name }))
     } catch (e) { report.push({ source: f.name, error: e.message }) }
