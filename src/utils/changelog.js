@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.16.0'
+export const APP_DISPLAY_VERSION = '2.17.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.17.0',
+    date: '2026-09-20',
+    changes: [
+      'Formulaire d\'action : la prochaine action et sa date ne sont saisissables que pour « À relancer » ou « RDV pris » ; elles sont effacées si on passe à « Sans suite », « Refus » ou « Signé »',
+    ],
+  },
   {
     version: '2.16.0',
     date: '2026-09-20',

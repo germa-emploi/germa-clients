@@ -62,6 +62,8 @@ export const isHiddenAccount = (p) => !!p && HIDDEN_ACCOUNT_EMAILS.includes((p.e
 
 // Résultats d'action qui clôturent le suivi (retirent la relance et le drapeau "À relancer")
 export const CLOSING_RESULTS = ['Sans suite', 'Refus', 'Signé']
+// Résultats pour lesquels une prochaine action / date de relance a un sens
+export const RELANCE_RESULTS = ['À relancer', 'RDV pris']
 
 // Date du jour au format AAAA-MM-JJ (heure locale)
 export function toLocalDateISO(value) {
