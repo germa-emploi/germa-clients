@@ -36,7 +36,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
-  const [showPrio, setShowPrio] = useState(false)
   const now = new Date()
   // KPI card filter for Actions
   const [kpiActYear, setKpiActYear] = useState(now.getFullYear())
@@ -212,10 +211,8 @@ export default function Dashboard() {
         </div>
         <div className="flex items-center gap-2 self-start">
           {(veilleNew.mention + veilleNew.piste) > 0 && <button onClick={() => navigate('/presse')} className="flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">📰 {veilleNew.mention} mention{veilleNew.mention > 1 ? 's' : ''} · {veilleNew.piste} piste{veilleNew.piste > 1 ? 's' : ''}</button>}
-          <button onClick={() => setShowPrio(true)} className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Priorités de la semaine</button>
         </div>
       </div>
-      {showPrio && <PrioritiesModal enterprises={enterprises} actions={actions} profiles={profiles} onClose={() => setShowPrio(false)} onOpen={(id) => navigate(`/entreprise/${id}`)} />}
 
       {/* Navigation rapide */}
       <div className="sticky top-[38px] lg:top-[38px] z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-gray-50/95 backdrop-blur border-b border-gray-100 flex gap-2 overflow-x-auto">
@@ -603,57 +600,6 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
             </div>
           )}
         </div>
-      </div>
-    </div>
-  )
-}
-
-
-// ============================================================
-// DÉMO — Priorités de la semaine (classement simulé, sans API)
-// ============================================================
-function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
-  const [ready, setReady] = useState(false)
-  const [res, setRes] = useState(null)
-  const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
-  useEffect(() => { (async () => {
-    const { data } = await supabase.from('ia_scores').select('*').gte('score', 2)
-    const lastByEnt = {}
-    actions.forEach(a => { if (!lastByEnt[a.enterprise_id] || a.performed_at > lastByEnt[a.enterprise_id].performed_at) lastByEnt[a.enterprise_id] = a })
-    const ents = Object.fromEntries(enterprises.map(e => [e.id, e]))
-    const rows = (data || []).map(sc => ({ sc, e: ents[sc.enterprise_id], last: lastByEnt[sc.enterprise_id] }))
-      .filter(r => r.e && r.e.status === 'prospect')
-      .sort((a, b) => b.sc.score - a.sc.score || ((b.last?.performed_at || '') > (a.last?.performed_at || '') ? 1 : -1))
-    setRes({ total: (data || []).length, top: rows.slice(0, 15).map(r => ({ id: r.e.id, name: r.e.name, city: r.e.city, commercial: prof[r.e.assigned_to] || '—', stars: r.sc.score, why: r.sc.reason, lastDate: r.last?.performed_at, nextDate: r.last?.next_action_date, computed: r.sc.computed_at })) })
-    setReady(true)
-  })() }, [])
-  const stars = (n) => <span className="inline-flex items-center gap-0.5 text-sm" title={`Chaleur : ${n}/5`}>{[1, 2, 3, 4, 5].map(i => <span key={i} className={i <= n ? '' : 'opacity-20 grayscale'}>🔥</span>)}</span>
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[92vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="font-display font-semibold text-lg text-violet-800">✨ Priorités de la semaine</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
-        </div>
-        <div className="p-6">
-          {!ready ? <div className="py-10 text-center text-violet-700 text-sm">Chargement des scores…</div> : <>
-            <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded-xl px-3 py-2 mb-3">✨ Les {res.top.length} prospects les plus chauds, d'après les scores calculés chaque nuit par l'assistant sur les fiches modifiées ({res.total} prospects notés à 2 flammes ou plus).</div>
-            <div className="divide-y divide-gray-100">
-              {res.top.map(r => (
-                <div key={r.id} className="py-3 flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-900 flex items-center gap-2 flex-wrap"><span>{r.name}</span>{stars(r.stars)}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">{r.city || '—'} · {r.commercial} · dernier contact {formatDate(r.lastDate)}{r.nextDate ? ` · relance ${formatDate(r.nextDate)}` : ' · aucune relance planifiée'} · noté le {formatDate(r.computed)}</div>
-                    <div className="text-sm text-gray-600 mt-1">{r.why}</div>
-                  </div>
-                  <button onClick={() => onOpen(r.id)} className="flex-shrink-0 text-sm font-medium px-3 py-1.5 rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100">Ouvrir</button>
-                </div>
-              ))}
-              {res.top.length === 0 && <div className="py-8 text-center text-gray-400 text-sm">Aucun score disponible pour l'instant.</div>}
-            </div>
-          </>}
-        </div>
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
       </div>
     </div>
   )

@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.36.0-démo'
+export const APP_DISPLAY_VERSION = '2.36.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.36.1-démo',
+    date: '2026-09-20',
+    changes: [
+      '« Priorités de la semaine » retirée (doublon avec les suggestions du jour, la colonne Chaleur et les conseils de relance)',
+      'Conseil de relance : « Aucune action pour l\'instant » quand la relance future suffit',
+    ],
+  },
   {
     version: '2.36.0-démo',
     date: '2026-09-20',
