@@ -40,6 +40,10 @@ Tiens compte de la date du jour ({{TODAY}}) : un besoin passé (vendanges termin
 Rédige la raison en une phrase de 25 mots maximum, factuelle, tirée des commentaires, qui dit ce qui justifie le score et ce qu'il reste à faire.
 Réponds UNIQUEMENT avec un JSON : {"score": 1-5, "reason": "..."}`,
 
+  relance_date: `Tu aides un commercial de GERMA Emploi à fixer la date de sa prochaine relance à partir du commentaire qu'il vient d'écrire sur un échange. Le message indique la date du jour.
+Règles : si le commentaire contient une date ou une échéance explicite (« rappeler jeudi », « reprise de contact début octobre », « dans 15 jours », « après les vendanges », « quand le chantier démarre fin novembre »), propose la date correspondante (un jour ouvré, le lundi suivant si l'échéance tombe un week-end). Sinon, déduis un délai raisonnable de la situation : message vocal ou mail sans réponse → 5 jours ouvrés ; « pas de besoin pour l'instant » → 2 mois ; besoin annoncé pour une saison → 3 semaines avant cette saison ; refus net → aucune date. Ne propose jamais une date passée.
+Réponds UNIQUEMENT avec un JSON : {"date": "AAAA-MM-JJ" ou "", "label": "prochaine action en 2-4 mots (Rappeler, Relancer par mail, Visite…)", "why": "justification en 10 mots maximum"}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }

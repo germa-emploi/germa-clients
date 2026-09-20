@@ -391,6 +391,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <RelanceSuggestion form={form} setForm={setForm} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">{saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={16} />}<span>Enregistrer</span></button>
@@ -454,6 +455,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <RelanceSuggestion form={form} setForm={setForm} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
@@ -918,6 +920,33 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
   )
 }
 
+
+// ✨ Suggestion de date de relance à partir du commentaire (IA, repli sur l'analyse locale)
+function RelanceSuggestion({ form, setForm }) {
+  const [state, setState] = useState(null) // null | 'busy' | { date, label, why, source }
+  const canSuggest = form.result === 'À relancer' && (form.comments || '').trim().length > 5
+  const suggest = async () => {
+    setState('busy')
+    const res = await aiRequest('relance_date', `Date du jour : ${todayISO()}\nCommentaire : ${form.comments}`)
+    let sug
+    if (res?.result?.date) sug = { date: res.result.date, label: res.result.label || 'Relance', why: res.result.why || '', source: res.model }
+    else { const p = parseFreeText(form.comments); sug = { date: p.next_action_date || '', label: p.next_action || 'Relance', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
+    setState(sug)
+    if (sug.date) setForm(f => ({ ...f, next_action_date: sug.date, next_action: f.next_action || sug.label }))
+  }
+  if (!canSuggest) return null
+  return (
+    <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800 flex items-center justify-between gap-3">
+      <span>
+        {state === 'busy' ? '✨ Lecture du commentaire…'
+          : state?.date ? <>✨ Date proposée : <b>{formatDate(state.date)}</b>{state.why ? ` — ${state.why}` : ''} <span className="text-violet-500">({state.source})</span>. Modifiable ci-dessus.</>
+          : state ? <>✨ Aucune date claire dans le commentaire — choisissez-la ci-dessus.</>
+          : '✨ L\'assistant peut proposer une date de relance d\'après le commentaire.'}
+      </span>
+      <button type="button" onClick={suggest} disabled={state === 'busy'} className="flex-shrink-0 font-medium px-2.5 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">{state && state !== 'busy' ? 'Re-proposer' : 'Proposer'}</button>
+    </div>
+  )
+}
 
 // ============================================================
 // DÉMO — composants "assistant IA" (résultats simulés, sans API)

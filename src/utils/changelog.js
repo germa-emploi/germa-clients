@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.13.0-démo'
+export const APP_DISPLAY_VERSION = '2.14.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.14.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Date de relance suggérée : dans une action « À relancer », l\'assistant lit le commentaire et propose une date et un libellé de prochaine action, que le commercial peut modifier avant d\'enregistrer',
+    ],
+  },
   {
     version: '2.13.0-démo',
     date: '2026-09-20',
