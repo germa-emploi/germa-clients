@@ -1,11 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.19.0-démo'
+export const APP_DISPLAY_VERSION = '2.19.1-démo'
 
 export const CHANGELOG = [
   {
-    version: '2.19.0-démo',
+    version: '2.19.1-démo',
     date: '2026-09-20',
     changes: [
-      'Page « Nouveautés démo » dans le menu : liste des évolutions propres à la démo par rapport à la prod',
+      'Page « Nouveautés démo » dans le menu : présentation des nouvelles fonctions, pensée pour une démonstration en direct',
     ],
   },
   {
