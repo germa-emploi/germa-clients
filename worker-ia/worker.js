@@ -233,8 +233,9 @@ async function veille(env, { dryRun = false, maxPistesArticles = 40 } = {}) {
     }
   }
   // ---- pistes : articles récents non traités, par lots de 15 ----
-  const pisteSeenUrls = new Set(existing.filter(v => v.kind === 'piste').map(v => v.url))
-  const cands = recent.filter(i => !pisteSeenUrls.has(i.link) && !/boamp/i.test(i.source) ? true : !pisteSeenUrls.has(i.link)).slice(0, maxPistesArticles)
+  // articles déjà analysés pour les pistes (qu'ils aient donné quelque chose ou non)
+  const vu = new Set((await sbAll(env, 'ia_veille_vu?select=url')).map(v => v.url))
+  const cands = recent.filter(i => !vu.has(i.link)).slice(0, maxPistesArticles)
   if (dryRun) { out.pistesCandidats = cands.length; return out }
   const nameKeys = new Set(index.map(x => x.key))
   for (let i = 0; i < cands.length; i += 15) {
@@ -250,6 +251,8 @@ async function veille(env, { dryRun = false, maxPistesArticles = 40 } = {}) {
         await sb(env, 'ia_veille', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ kind: 'piste', company_name: String(p.company).slice(0, 120), city: p.city || null, department: ['67', '68'].includes(String(p.department)) ? String(p.department) : null, title: a.title, url: a.link, source: a.source, published_at: a.date && !isNaN(new Date(a.date)) ? new Date(a.date).toISOString().slice(0, 10) : null, why: String(p.why || '').slice(0, 300), model }) })
         out.pistes++
       }
+      // marquer le lot comme analysé
+      await sb(env, 'ia_veille_vu', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify(lot.map(a => ({ url: a.link }))) })
     } catch (err) { out.errors.push(`pistes lot ${i / 15 + 1}: ${err.message}`) }
   }
   return out
