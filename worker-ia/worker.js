@@ -47,7 +47,7 @@ Réponds UNIQUEMENT avec un JSON : {"date": "AAAA-MM-JJ" ou "", "label": "un lib
 
   daily: `Tu es l'assistant commercial de GERMA Emploi. Date du jour : {{TODAY}}. On te donne la liste des prospects suivis par un commercial, avec pour chacun le score de chaleur (1-5) et sa raison, la relance planifiée s'il y en a une, la date du dernier contact et le dernier commentaire. Choisis les 5 prospects qu'il devrait traiter AUJOURD'HUI, dans l'ordre, en privilégiant : relance due aujourd'hui ou en retard, dossier chaud où c'est à nous d'agir (mail promis, candidats à envoyer, proposition à faire), besoin daté qui approche, puis dossiers tièdes sans contact depuis longtemps. Écarte ce qui est manifestement clos.
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition ; et une raison en 20 mots maximum, factuelle.
-Réponds UNIQUEMENT avec un JSON compact sur une ligne, contenant EXACTEMENT 5 éléments (jamais plus), sans aucun texte avant ou après : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
+Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, contenant EXACTEMENT 5 éléments (jamais plus), sans aucun texte avant ou après : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
   veille_mention: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). On te donne un article de presse et le nom d'une entreprise de notre base qui semble y être citée. Dis si l'article parle bien de CETTE entreprise (et pas d'une homonyme), et résume en deux phrases ce que ça change pour un commercial : chantier ou marché gagné, extension, recrutement, difficulté, clause d'insertion…
 Réponds UNIQUEMENT avec un JSON : {"match": true|false, "summary": "deux phrases maximum", "department": "67"|"68"|""}`,
@@ -57,7 +57,7 @@ Réponds UNIQUEMENT avec un JSON : {"pistes": [{"article": 1, "company": "...", 
 
   reopen: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des prospects dont le dernier contact s'est terminé par « {{KIND}} », avec le commentaire de ce contact, l'ancienneté, et le cas échéant une actualité récente (presse ou marché public). Choisis ceux qu'il serait pertinent de RELANCER MAINTENANT, jusqu'à 5, du plus prometteur au moins, en t'appuyant sur : un refus daté ou conditionnel dont l'échéance est passée (« pas pour l'instant », « après les vendanges », « quand le chantier démarrera ») ; un fait nouveau (marché gagné, chantier, extension, recrutement) ; une raison de refus qui a pu changer (autre agence en place, chantier reporté, RH absente, changement de direction) ; la saisonnalité (relancer 3 semaines avant la saison) ; un simple contact raté (répondeur, injoignable) vieux de plus de 2 mois. Écarte : « ne plus recontacter », cessation, retraite, main-d'œuvre structurellement interne ou étrangère, refus de principe répétés.
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site ; une raison en 25 mots maximum qui cite le fait précis qui justifie la relance.
-Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 5 éléments, sans texte autour : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
+Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 5 éléments, sans texte autour : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
@@ -96,6 +96,16 @@ async function sb(env, path, init = {}) {
   if (!r.ok) throw new Error(`Supabase ${path}: ${r.status} ${txt}`)
   return txt ? JSON.parse(txt) : null
 }
+// JSON tolérant : parse normal, sinon récupération des éléments {id, action, why} un par un
+function parsePicks(raw) {
+  const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
+  if (a >= 0 && b > a) { try { return JSON.parse(raw.slice(a, b + 1)) } catch { /* on tente la récupération */ } }
+  const picks = []
+  const re = /"id"\s*:\s*"([^"]+)"[\s\S]*?"action"\s*:\s*"([^"]+)"[\s\S]*?"why"\s*:\s*"([\s\S]*?)"\s*\}/g
+  let m; while ((m = re.exec(raw))) picks.push({ id: m[1], action: m[2], why: m[3].replace(/\\"/g, '"') })
+  if (!picks.length) throw new Error(`JSON invalide : ${raw.slice(0, 120)}`)
+  return { picks, recovered: true }
+}
 // Lecture complète d'une table par pages de 1000 (Supabase limite chaque réponse à 1000 lignes)
 async function sbAll(env, path) {
   const out = []
@@ -122,7 +132,10 @@ async function askClaude(env, task, context) {
   const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
   if (a < 0 || b < a) throw new Error(`réponse sans JSON (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
   try { return { result: JSON.parse(raw.slice(a, b + 1)), model: data.model, usage: data.usage } }
-  catch (e) { throw new Error(`JSON invalide (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`) }
+  catch (e) {
+    if (/"picks"/.test(raw)) { try { return { result: parsePicks(raw), model: data.model, usage: data.usage } } catch { /* tombe dans l'erreur */ } }
+    throw new Error(`JSON invalide (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
+  }
 }
 async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {}) {
   if (hours <= 0 && !force.length) return { scanned: 0, scored: 0, skipped: 0, errors: [] }
@@ -346,8 +359,8 @@ async function reopenSuggestions(env, { date } = {}) {
       const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 2000, system: system.replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: ctx }] }) })
       const body = await r.text(); let data = {}; try { data = JSON.parse(body) } catch { throw new Error(`API ${r.status} : ${body.slice(0, 120)}`) }
       if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
-      const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim(); const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
-      const result = JSON.parse(raw.slice(a, b + 1))
+      const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
+      const result = parsePicks(raw)
       const byId = Object.fromEntries(cands.map(c => [c.e.id, c]))
       const picks = (result.picks || []).filter(x => byId[x.id]).slice(0, 5)
       await sb(env, `ia_suggestions?date=eq.${today}&kind=eq.${kind}`, { method: 'DELETE' })
