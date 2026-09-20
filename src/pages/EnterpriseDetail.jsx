@@ -8,7 +8,7 @@ import {
   FileText, UserPlus, Send, PenTool, UserCog, Merge, Search
 } from 'lucide-react'
 import {
-  ACTION_TYPES, CHANNELS, RESULTS, NEXT_ACTIONS,
+  ACTION_TYPES, CHANNELS, RESULTS, NEXT_ACTIONS, RELANCE_RESULTS,
   STATUS_COLORS, RESULT_COLORS,
   formatDate, formatDateTime, DEPARTMENTS,
   CLOSING_RESULTS, todayISO, toLocalDateISO, performedAtFromDate
@@ -359,7 +359,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
   const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: 'Relance téléphonique', next_action_date: '', comments: '', contact: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'action_type') setForm(o => ({ ...o, [f]: v, channel: v })) }
+  function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'action_type') setForm(o => ({ ...o, [f]: v, channel: v })); if (f === 'result' && !RELANCE_RESULTS.includes(v)) setForm(o => ({ ...o, result: v, next_action: '', next_action_date: '' })) }
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError('')
     if (form.performed_date > todayISO()) { setError("La date de l'action ne peut pas être dans le futur."); setSaving(false); return }
@@ -386,10 +386,10 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.need_identified} onChange={e => update('need_identified', e.target.checked)} className="rounded border-gray-300 text-germa-600" />Besoin identifié</label>
           </div>
           {form.need_identified && <div><label className="block text-sm font-medium text-gray-700 mb-1">Type de besoin</label><input value={form.need_type} onChange={e => update('need_type', e.target.value)} className="input-field" placeholder="Ex: Intérim renfort" /></div>}
-          <div className="grid grid-cols-2 gap-3">
+          {RELANCE_RESULTS.includes(form.result) && <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
-          </div>
+          </div>}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <RelanceSuggestion form={form} setForm={setForm} />
           <div className="flex gap-3 pt-2">
@@ -414,7 +414,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
     comments: action.comments || '', contact: action.contact || '',
   })
   const [saving, setSaving] = useState(false)
-  function update(f, v) { setForm(o => ({ ...o, [f]: v })) }
+  function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'result' && !RELANCE_RESULTS.includes(v)) setForm(o => ({ ...o, result: v, next_action: '', next_action_date: '' })) }
 
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true)
@@ -450,10 +450,10 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.need_identified} onChange={e => update('need_identified', e.target.checked)} className="rounded border-gray-300 text-germa-600" />Besoin identifié</label>
           </div>
           {form.need_identified && <div><label className="block text-sm font-medium text-gray-700 mb-1">Type de besoin</label><input value={form.need_type} onChange={e => update('need_type', e.target.value)} className="input-field" /></div>}
-          <div className="grid grid-cols-2 gap-3">
+          {RELANCE_RESULTS.includes(form.result) && <div className="grid grid-cols-2 gap-3">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
-          </div>
+          </div>}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <RelanceSuggestion form={form} setForm={setForm} />
           <div className="flex gap-3 pt-2">
