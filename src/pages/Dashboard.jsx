@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { todayISO } from '../utils/constants'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, AreaChart, Area,
@@ -35,7 +36,8 @@ export default function Dashboard() {
   const [kpiActYear, setKpiActYear] = useState(now.getFullYear())
   const [relYear, setRelYear] = useState('')   // '' = toutes années
   const [relMonth, setRelMonth] = useState('') // '' = tous mois
-  const [relAll, setRelAll] = useState(false)  // afficher toutes les relances (sans limite)
+  const [relAll, setRelAll] = useState(false)  // afficher toutes les relances planifiées
+  const [lateShowAll, setLateShowAll] = useState(false) // afficher toutes les relances en retard
   const [kpiActMonth, setKpiActMonth] = useState(now.getMonth())
 
   useEffect(() => { loadData() }, [])
@@ -318,46 +320,61 @@ export default function Dashboard() {
       </div>
 
       {/* Entreprises à relancer */}
-      {/* Relances */}
-      {stats.upcomingRelances.length > 0 && (() => {
-        const relYears = [...new Set(stats.upcomingRelances.map(a => new Date(a.next_action_date).getFullYear()))].sort()
-        const filteredRel = stats.upcomingRelances.filter(a => { const d = new Date(a.next_action_date); return (relYear === '' || d.getFullYear() === Number(relYear)) && (relMonth === '' || d.getMonth() === Number(relMonth)) })
-        const shownRel = relAll ? filteredRel : filteredRel.slice(0, 15)
-        return (
-        <div className="card p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-            <h3 className="font-display font-semibold text-gray-900 text-sm">⏰ {isDirection ? 'Prochaines relances planifiées' : 'Mes prochaines relances'} <span className="text-xs font-normal text-gray-400">({filteredRel.length})</span></h3>
-            <div className="flex items-center gap-1.5">
-              <select value={relYear} onChange={e => setRelYear(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
-                <option value="">Toutes années</option>{relYears.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <select value={relMonth} onChange={e => setRelMonth(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
-                <option value="">Tous mois</option>{MONTHS_FR.map((m, i) => <option key={i} value={i}>{m}</option>)}
-              </select>
-              {(relYear || relMonth) && <button onClick={() => { setRelYear(''); setRelMonth('') }} className="text-xs text-gray-500 hover:text-germa-700 px-1">✕</button>}
+      {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
+      {(() => {
+        const today = todayISO()
+        const isMine = (a) => true
+        const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today)
+        const plannedAll = stats.upcomingRelances.filter(a => a.next_action_date >= today)
+        const relYears = [...new Set(plannedAll.map(a => new Date(a.next_action_date).getFullYear()))].sort()
+        const planned = plannedAll.filter(a => { const d = new Date(a.next_action_date); return (relYear === '' || d.getFullYear() === Number(relYear)) && (relMonth === '' || d.getMonth() === Number(relMonth)) })
+        const shownLate = lateAll ? (lateShowAll ? lateAll : lateAll.slice(0, 15)) : []
+        const shownPlanned = relAll ? planned : planned.slice(0, 15)
+        const Row = ({ action, late }) => {
+          const ent = enterprises.find(e => e.id === action.enterprise_id)
+          const performer = profiles.find(p => p.id === action.performed_by)
+          const isToday = action.next_action_date === today
+          return (
+            <div onClick={() => ent && navigate(`/entreprises/${ent.id}`)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${late ? 'bg-red-50 hover:bg-red-100' : isToday ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
+              <Clock size={14} className={late ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'} />
+              <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent?.name || '?'}</p><p className="text-xs text-gray-500">{action.next_action} — {performer?.full_name}</p></div>
+              <span className={`text-xs font-medium ${late ? 'text-red-600' : isToday ? 'text-amber-700' : 'text-gray-600'}`}>{late ? '⚠️ ' : isToday ? "Aujourd'hui" : ''}{isToday ? '' : formatDate(action.next_action_date)}</span>
             </div>
+          )
+        }
+        return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="card p-4 sm:p-5 border-red-100">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-semibold text-red-700 text-sm">⚠️ {isDirection ? 'Relances en retard' : 'Mes relances en retard'} <span className="text-xs font-normal text-gray-400">({lateAll.length})</span></h3>
+            </div>
+            <div className="space-y-1.5">
+              {lateAll.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance en retard 👍</p>}
+              {shownLate.map(a => <Row key={a.id} action={a} late />)}
+            </div>
+            {!lateShowAll && lateAll.length > 15 && <button onClick={() => setLateShowAll(true)} className="mt-3 w-full text-sm font-medium text-red-700 hover:bg-red-50 rounded-xl py-2 border border-red-200">Voir toutes les relances en retard ({lateAll.length})</button>}
+            {lateShowAll && lateAll.length > 15 && <button onClick={() => setLateShowAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>}
           </div>
-          <div className="space-y-1.5">
-            {filteredRel.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance sur cette période.</p>}
-            {shownRel.map(action => {
-              const ent = enterprises.find(e => e.id === action.enterprise_id)
-              const performer = profiles.find(p => p.id === action.performed_by)
-              const isOverdue = new Date(action.next_action_date) < new Date()
-              return (
-                <div key={action.id} onClick={() => ent && navigate(`/entreprises/${ent.id}`)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${isOverdue ? 'bg-red-50 hover:bg-red-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
-                  <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-400'} />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent?.name || '?'}</p><p className="text-xs text-gray-500">{action.next_action} — {performer?.full_name}</p></div>
-                  <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>{isOverdue ? '⚠️ ' : ''}{formatDate(action.next_action_date)}</span>
-                </div>
-              )
-            })}
+          <div className="card p-4 sm:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <h3 className="font-display font-semibold text-gray-900 text-sm">⏰ {isDirection ? 'Relances planifiées' : 'Mes relances planifiées'} <span className="text-xs font-normal text-gray-400">({planned.length})</span></h3>
+              <div className="flex items-center gap-1.5">
+                <select value={relYear} onChange={e => setRelYear(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
+                  <option value="">Toutes années</option>{relYears.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+                <select value={relMonth} onChange={e => setRelMonth(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
+                  <option value="">Tous mois</option>{MONTHS_FR.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                </select>
+                {(relYear || relMonth) && <button onClick={() => { setRelYear(''); setRelMonth('') }} className="text-xs text-gray-500 hover:text-germa-700 px-1">✕</button>}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              {planned.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance {relYear || relMonth ? 'sur cette période' : 'à venir'}.</p>}
+              {shownPlanned.map(a => <Row key={a.id} action={a} />)}
+            </div>
+            {!relAll && planned.length > 15 && <button onClick={() => setRelAll(true)} className="mt-3 w-full text-sm font-medium text-germa-700 hover:bg-germa-50 rounded-xl py-2 border border-germa-200">Voir toutes les relances ({planned.length})</button>}
+            {relAll && planned.length > 15 && <button onClick={() => setRelAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>}
           </div>
-          {!relAll && filteredRel.length > 15 && (
-            <button onClick={() => setRelAll(true)} className="mt-3 w-full text-sm font-medium text-germa-700 hover:bg-germa-50 rounded-xl py-2 border border-germa-200">Voir toutes les relances ({filteredRel.length})</button>
-          )}
-          {relAll && filteredRel.length > 15 && (
-            <button onClick={() => setRelAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>
-          )}
         </div>
         )
       })()}
