@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.31.0-démo'
+export const APP_DISPLAY_VERSION = '2.32.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.32.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Relances en retard classées par urgence (Urgent / À faire / Peut attendre / À solder), calculée chaque nuit par l\'assistant avec tout le contexte de la fiche ; pastille, raison et compteurs par niveau, les plus urgentes en tête',
+    ],
+  },
   {
     version: '2.31.0-démo',
     date: '2026-09-20',

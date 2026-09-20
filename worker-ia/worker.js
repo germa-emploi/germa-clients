@@ -59,6 +59,14 @@ Réponds UNIQUEMENT avec un JSON : {"pistes": [{"article": 1, "company": "...", 
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site ; une raison en 25 mots maximum qui cite le fait précis qui justifie la relance.
 Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 5 éléments, sans texte autour : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
+  urgence: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des relances en retard : pour chacune, l'entreprise, sa chaleur (1-5) et la raison, le nombre de jours de retard, la relance prévue, le dernier commentaire et l'actualité éventuelle. Attribue à chacune un niveau d'urgence :
+3 = urgent : besoin concret ou daté, interlocuteur engagé, proposition en cours, actualité favorable, ou retard qui met en péril une affaire ;
+2 = à faire : intérêt réel mais rien de brûlant, ou dossier tiède à ne pas laisser refroidir ;
+1 = peut attendre : porte entrouverte sans besoin, saison lointaine, simple contact raté ;
+0 = à solder : la relance n'a plus de sens (besoin passé, pas de besoin, refus implicite, contact obsolète) — le commercial devrait la clôturer.
+Pour chacune, une raison en 15 mots maximum. Dans les textes, jamais de guillemets droits ".
+Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "why": "..."}]}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -135,6 +143,7 @@ async function askClaude(env, task, context) {
   try { return { result: JSON.parse(raw.slice(a, b + 1)), model: data.model, usage: data.usage } }
   catch (e) {
     if (/"picks"/.test(raw)) { try { return { result: parsePicks(raw), model: data.model, usage: data.usage } } catch { /* tombe dans l'erreur */ } }
+    if (/"items"/.test(raw)) { const items = []; const re = /"id"\s*:\s*"([^"]+)"[\s\S]*?"level"\s*:\s*(\d)[\s\S]*?"why"\s*:\s*"([\s\S]*?)"\s*\}/g; let m; while ((m = re.exec(raw))) items.push({ id: m[1], level: +m[2], why: m[3] }); if (items.length) return { result: { items }, model: data.model, usage: data.usage } }
     throw new Error(`JSON invalide (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
   }
 }
@@ -372,6 +381,47 @@ async function reopenSuggestions(env, { date } = {}) {
   return out
 }
 
+// ---------- Urgence des relances en retard ----------
+async function urgenceRelances(env, { force = false } = {}) {
+  const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
+  const [ents, acts, scores, presse, prev, logs] = await Promise.all([
+    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,proposition_envoyee_at`),
+    sbAll(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&order=performed_at.desc`),
+    sbAll(env, `ia_scores?select=enterprise_id,score,reason`),
+    sbAll(env, `ia_veille?select=enterprise_id,title,summary,published_at,created_at&kind=eq.mention`),
+    sbAll(env, `ia_urgences?select=enterprise_id,computed_at`),
+    sbAll(env, `activity_log?select=target_id,created_at&target_type=eq.enterprise&created_at=gte.${new Date(Date.now() - 8 * 86400000).toISOString()}`),
+  ])
+  const last = {}; acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
+  const scoreBy = Object.fromEntries(scores.map(s => [s.enterprise_id, s]))
+  const pressBy = {}; presse.forEach(p => { (pressBy[p.enterprise_id] = pressBy[p.enterprise_id] || []).push(p) })
+  const prevBy = Object.fromEntries(prev.map(p => [p.enterprise_id, p.computed_at]))
+  const touched = new Set(logs.map(l => l.target_id))
+  const week = new Date(Date.now() - 7 * 86400000).toISOString()
+  const late = ents.map(e => ({ e, la: last[e.id] })).filter(c => c.la && c.la.result === 'À relancer' && c.la.next_action_date && c.la.next_action_date < today)
+  const todo = late.filter(c => force || !prevBy[c.e.id] || prevBy[c.e.id] < week || touched.has(c.e.id) || (c.la.performed_at > prevBy[c.e.id]))
+  const out = { total_late: late.length, analysed: 0, errors: [], tokens: 0 }
+  const days = (d) => Math.round((new Date(today) - new Date(d)) / 86400000)
+  for (let i = 0; i < todo.length; i += 50) {
+    const lot = todo.slice(i, i + 50)
+    const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${sc.reason}` : ''} | retard ${days(c.la.next_action_date)} j (prévue le ${fmtFR(c.la.next_action_date)}, ${c.la.next_action || 'relance'})${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
+    try {
+      const { result, model, usage } = await askClaude(env, 'urgence', ctx)
+      out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
+      const byId = new Set(lot.map(c => c.e.id))
+      const rows = (result.items || []).filter(x => byId.has(x.id)).map(x => ({ enterprise_id: x.id, level: Math.max(0, Math.min(3, Math.round(Number(x.level)))), reason: String(x.why || '').slice(0, 200), model, computed_at: new Date().toISOString() }))
+      if (rows.length) await sb(env, 'ia_urgences', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) })
+      out.analysed += rows.length
+    } catch (err) { out.errors.push(`lot ${i / 50 + 1}: ${err.message}`) }
+  }
+  // purge : entreprises qui ne sont plus en retard
+  const lateIds = new Set(late.map(c => c.e.id))
+  const stale = prev.filter(p => !lateIds.has(p.enterprise_id)).map(p => p.enterprise_id)
+  for (let i = 0; i < stale.length; i += 100) await sb(env, `ia_urgences?enterprise_id=in.(${stale.slice(i, i + 100).join(',')})`, { method: 'DELETE' })
+  out.purged = stale.length
+  return out
+}
+
 export default {
   // Déclencheur planifié (Cloudflare → Settings → Triggers → Cron) : notation des fiches modifiées dans la journée
   async scheduled(event, env, ctx) {
@@ -380,6 +430,7 @@ export default {
       const r2 = await dailySuggestions(env); console.log('Suggestions du jour :', JSON.stringify(r2))
       const r3 = await veille(env); console.log('Veille presse :', JSON.stringify(r3))
       const r4 = await reopenSuggestions(env); console.log('Relances sans suite / refus :', JSON.stringify(r4))
+      const r5 = await urgenceRelances(env); console.log('Urgence des relances :', JSON.stringify(r5))
     })())
   },
 
@@ -400,6 +451,12 @@ export default {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
       if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test', days: Number(b.days) || 0 })), { status: 200, headers }) }
+      catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
+    if (new URL(request.url).pathname === '/urgence') {
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      try { return new Response(JSON.stringify(await urgenceRelances(env, { force: !!b.force })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/reopen') {

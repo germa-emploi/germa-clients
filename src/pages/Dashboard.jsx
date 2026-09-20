@@ -32,6 +32,7 @@ export default function Dashboard() {
   const [scores, setScores] = useState({})
   const [suggestions, setSuggestions] = useState([])
   const [veilleNew, setVeilleNew] = useState({ mention: 0, piste: 0 })
+  const [urgences, setUrgences] = useState({})
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
@@ -49,17 +50,19 @@ export default function Dashboard() {
 
   async function loadData() {
     setLoading(true)
-    const [entData, actData, profData, secData, scoreData, sugData] = await Promise.all([
+    const [entData, actData, profData, secData, scoreData, sugData, urgData] = await Promise.all([
       fetchAll('enterprises'),
       fetchAll('actions', { order: { column: 'performed_at', ascending: false } }),
       fetchAll('profiles'),
       fetchAll('sectors'),
       fetchAll('ia_scores'),
       fetchAll('ia_suggestions', { filters: { date: todayISO() }, order: { column: 'rank', ascending: true } }),
+      fetchAll('ia_urgences'),
     ])
     setEnterprises(entData); setActions(actData); setProfiles(profData); setSectors(secData)
     setScores(Object.fromEntries((scoreData || []).map(s => [s.enterprise_id, s])))
     setSuggestions(sugData || [])
+    setUrgences(Object.fromEntries((urgData || []).map(u => [u.enterprise_id, u])))
     supabase.from('ia_veille').select('kind').eq('status', 'new').then(({ data }) => setVeilleNew({ mention: (data || []).filter(v => v.kind === 'mention').length, piste: (data || []).filter(v => v.kind === 'piste').length }))
     setLoading(false)
   }
@@ -347,7 +350,10 @@ export default function Dashboard() {
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
         const today = todayISO()
-        const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today)
+        const URG = { 3: { label: 'Urgent', cls: 'bg-red-600 text-white' }, 2: { label: 'À faire', cls: 'bg-orange-500 text-white' }, 1: { label: 'Peut attendre', cls: 'bg-gray-200 text-gray-700' }, 0: { label: 'À solder', cls: 'bg-slate-700 text-white' } }
+        const lvl = (a) => urgences[a.enterprise_id]?.level
+        const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today).sort((a, b) => ((lvl(b) ?? -1) - (lvl(a) ?? -1)) || a.next_action_date.localeCompare(b.next_action_date))
+        const urgCount = lateAll.reduce((m, a) => { const l = lvl(a); if (l !== undefined) m[l] = (m[l] || 0) + 1; return m }, {})
         const plannedAll = stats.upcomingRelances.filter(a => a.next_action_date >= today)
         const relYears = [...new Set(plannedAll.map(a => new Date(a.next_action_date).getFullYear()))].sort()
         const planned = plannedAll.filter(a => { const d = new Date(a.next_action_date); return (relYear === '' || d.getFullYear() === Number(relYear)) && (relMonth === '' || d.getMonth() === Number(relMonth)) })
@@ -360,7 +366,10 @@ export default function Dashboard() {
           return (
             <div onClick={() => ent && navigate(`/entreprises/${ent.id}`)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${late ? 'bg-red-50 hover:bg-red-100' : isToday ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
               <Clock size={14} className={late ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'} />
-              <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent?.name || '?'}</p><p className="text-xs text-gray-500">{action.next_action} — {performer?.full_name}</p></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate flex items-center gap-2">{late && urgences[action.enterprise_id] && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${URG[urgences[action.enterprise_id].level].cls}`}>{URG[urgences[action.enterprise_id].level].label}</span>}{ent?.name || '?'}</p>
+                <p className="text-xs text-gray-500">{late && urgences[action.enterprise_id]?.reason ? urgences[action.enterprise_id].reason : `${action.next_action} — ${performer?.full_name}`}</p>
+              </div>
               {ent && scores[ent.id] && ent.status === 'prospect' && <Flames score={scores[ent.id].score} size="text-xs" title={scores[ent.id].reason} />}
               <span className={`text-xs font-medium ${late ? 'text-red-600' : isToday ? 'text-amber-700' : 'text-gray-600'}`}>{late ? '⚠️ ' : isToday ? "Aujourd'hui" : ''}{isToday ? '' : formatDate(action.next_action_date)}</span>
             </div>
@@ -371,6 +380,7 @@ export default function Dashboard() {
           <div className="card p-4 sm:p-5 border-red-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-display font-semibold text-red-700 text-sm">⚠️ {isDirection ? 'Relances en retard' : 'Mes relances en retard'} <span className="text-xs font-normal text-gray-400">({lateAll.length})</span></h3>
+              {Object.keys(urgCount).length > 0 && <div className="flex gap-1 flex-wrap">{[3, 2, 1, 0].filter(l => urgCount[l]).map(l => <span key={l} className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${URG[l].cls}`}>{urgCount[l]} {URG[l].label.toLowerCase()}</span>)}</div>}
             </div>
             <div className="space-y-1.5">
               {lateAll.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance en retard 👍</p>}
