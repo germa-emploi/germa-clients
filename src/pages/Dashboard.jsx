@@ -367,7 +367,7 @@ export default function Dashboard() {
             <div onClick={() => ent && navigate(`/entreprises/${ent.id}`)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${late ? 'bg-red-50 hover:bg-red-100' : isToday ? 'bg-amber-50 hover:bg-amber-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
               <Clock size={14} className={late ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'} />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate flex items-center gap-2">{late && urgences[action.enterprise_id] && <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-md ${URG[urgences[action.enterprise_id].level].cls}`}>{URG[urgences[action.enterprise_id].level].label}</span>}{ent?.name || '?'}</p>
+                <p className="text-sm font-medium truncate flex items-center gap-2">{late && urgences[action.enterprise_id] && <span className="text-sm leading-none tracking-tighter" title={URG[urgences[action.enterprise_id].level].label}>{urgences[action.enterprise_id].level === 0 ? '🧹' : '🏃'.repeat(urgences[action.enterprise_id].level)}</span>}{ent?.name || '?'}</p>
                 <p className="text-xs text-gray-500">{late && urgences[action.enterprise_id]?.reason ? urgences[action.enterprise_id].reason : `${action.next_action} — ${performer?.full_name}`}</p>
               </div>
               {ent && scores[ent.id] && ent.status === 'prospect' && <Flames score={scores[ent.id].score} size="text-xs" title={scores[ent.id].reason} />}
@@ -380,7 +380,7 @@ export default function Dashboard() {
           <div className="card p-4 sm:p-5 border-red-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-display font-semibold text-red-700 text-sm">⚠️ {isDirection ? 'Relances en retard' : 'Mes relances en retard'} <span className="text-xs font-normal text-gray-400">({lateAll.length})</span></h3>
-              {Object.keys(urgCount).length > 0 && <div className="flex gap-1 flex-wrap">{[3, 2, 1, 0].filter(l => urgCount[l]).map(l => <span key={l} className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${URG[l].cls}`}>{urgCount[l]} {URG[l].label.toLowerCase()}</span>)}</div>}
+              {Object.keys(urgCount).length > 0 && <div className="flex gap-1 flex-wrap">{[3, 2, 1, 0].filter(l => urgCount[l]).map(l => <span key={l} className="text-[11px] text-gray-600 bg-white border border-gray-200 rounded-md px-1.5 py-0.5" title={URG[l].label}>{l === 0 ? '🧹' : '🏃'.repeat(l)} {urgCount[l]}</span>)}</div>}
             </div>
             <div className="space-y-1.5">
               {lateAll.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance en retard 👍</p>}
