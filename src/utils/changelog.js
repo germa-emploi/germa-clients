@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.14.0-démo'
+export const APP_DISPLAY_VERSION = '2.15.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.15.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Reprend la prod 2.14.0 (page Historique)',
+    ],
+  },
   {
     version: '2.14.0-démo',
     date: '2026-09-20',
@@ -38,6 +45,23 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.14.0',
+    date: '2026-09-20',
+    changes: [
+      'Nouvelle page « Historique » dans le menu : entreprises créées, conversions, actions et RDV pris, sur toute la période',
+      'Filtres combinables : année, mois, commercial (direction), secteur, département, type d\'échange, résultat, recherche libre ; totaux par mois ; export Excel du résultat filtré',
+      'Un commercial ne voit que son activité et ses entreprises ; la direction voit tout',
+      'Les liens « → Historique » des cartes du tableau de bord ouvrent la page sur la bonne vue ; les cartes gardent leurs fenêtres rapides',
+    ],
+  },
+  {
+    version: '2.13.0',
+    date: '2026-09-20',
+    changes: [
+      'Champ « Suivi / Contact » retiré des formulaires d\'action (doublon avec résultat, prochaine étape et commentaire) ; les anciennes valeurs restent visibles dans l\'historique et l\'export',
     ],
   },
   {

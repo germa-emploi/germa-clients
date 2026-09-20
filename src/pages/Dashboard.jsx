@@ -208,7 +208,7 @@ export default function Dashboard() {
         <div onClick={() => setKpiModal('enterprises')} className="card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-germa-50 text-germa-700"><Building2 size={16} /></div>
-            <span className="text-[10px] text-gray-400 italic">→ Historique</span>
+            <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=entreprises') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.totalEnterprises}</p>
           <p className="text-xs text-gray-500">Entreprises</p>
@@ -217,7 +217,7 @@ export default function Dashboard() {
         <div onClick={() => setKpiModal('conversions')} className="card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-700"><UserCheck size={16} /></div>
-            <span className="text-[10px] text-gray-400 italic">→ Historique</span>
+            <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=conversions') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.conversionsAnnee}</p>
           <p className="text-xs text-gray-500">Conversions en {now.getFullYear()}</p>
@@ -226,7 +226,7 @@ export default function Dashboard() {
         <div className="card p-3 sm:p-4">
           <div className="flex items-center justify-between">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-purple-50 text-purple-700"><Phone size={16} /></div>
-            <YearMonthSelect year={kpiActYear} month={kpiActMonth} onYear={setKpiActYear} onMonth={setKpiActMonth} />
+            <div className="flex items-center gap-2"><YearMonthSelect year={kpiActYear} month={kpiActMonth} onYear={setKpiActYear} onMonth={setKpiActMonth} /><button type="button" onClick={() => navigate('/historique?vue=actions')} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button></div>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{kpiActCount}</p>
           <p className="text-xs text-gray-500">{isDirection ? 'Actions' : 'Mes actions'}</p>
@@ -234,7 +234,7 @@ export default function Dashboard() {
         <div onClick={() => setKpiModal('rdv')} className="card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center bg-rose-50 text-rose-700"><CalendarCheck size={16} /></div>
-            <span className="text-[10px] text-gray-400 italic">→ Historique</span>
+            <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=rdv') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.rdvAnnee}</p>
           <p className="text-xs text-gray-500">RDV pris en {now.getFullYear()}</p>
