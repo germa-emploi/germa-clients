@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   Search, Plus, Filter, Building2, X, MapPin, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft
 } from 'lucide-react'
-import { DEPARTMENTS, STATUS_COLORS, formatDate, isHiddenAccount } from '../utils/constants'
+import { DEPARTMENTS, STATUS_COLORS, RESULTS, formatDate, isHiddenAccount } from '../utils/constants'
 import Flames from '../components/Flames'
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES } from '../utils/activityLog'
@@ -14,7 +14,7 @@ const MONTHS_FR = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'A
 
 // Mémorise recherche, filtres et tri de la liste (par onglet prospects/clients) le temps de la session,
 // pour les retrouver intacts en revenant d'une fiche entreprise.
-const LIST_STATE_KEYS = ['search', 'filterSector', 'filterDept', 'filterCommercial', 'showFilters', 'filterRelance', 'filterProposition', 'filterDateYear', 'filterDateMonth', 'filterAncienClient', 'sortColumn', 'sortDir']
+const LIST_STATE_KEYS = ['search', 'filterSector', 'filterDept', 'filterCommercial', 'showFilters', 'filterRelance', 'filterProposition', 'filterResult', 'filterDateYear', 'filterDateMonth', 'filterAncienClient', 'sortColumn', 'sortDir']
 function readListState(status) {
   try { return JSON.parse(sessionStorage.getItem(`gc_list_${status}`) || '{}') } catch { return {} }
 }
@@ -42,15 +42,16 @@ export default function Enterprises({ filterStatus }) {
   const [showMailing, setShowMailing] = useState(false)
   const [filterRelance, setFilterRelance] = useState(saved.filterRelance ?? false)
   const [filterProposition, setFilterProposition] = useState(saved.filterProposition ?? '')
+  const [filterResult, setFilterResult] = useState(saved.filterResult ?? '')
   const [filterDateYear, setFilterDateYear] = useState(saved.filterDateYear ?? '')
   const [filterDateMonth, setFilterDateMonth] = useState(saved.filterDateMonth ?? '')
   const [filterAncienClient, setFilterAncienClient] = useState(saved.filterAncienClient ?? '')
   const [sortColumn, setSortColumn] = useState(saved.sortColumn ?? 'name')
   const [sortDir, setSortDir] = useState(saved.sortDir ?? 'asc')
 
-  const listState = { search, filterSector, filterDept, filterCommercial, showFilters, filterRelance, filterProposition, filterDateYear, filterDateMonth, filterAncienClient, sortColumn, sortDir }
-  const setters = { search: setSearch, filterSector: setFilterSector, filterDept: setFilterDept, filterCommercial: setFilterCommercial, showFilters: setShowFilters, filterRelance: setFilterRelance, filterProposition: setFilterProposition, filterDateYear: setFilterDateYear, filterDateMonth: setFilterDateMonth, filterAncienClient: setFilterAncienClient, sortColumn: setSortColumn, sortDir: setSortDir }
-  const defaults = { search: '', filterSector: '', filterDept: '', filterCommercial: '', showFilters: false, filterRelance: false, filterProposition: '', filterDateYear: '', filterDateMonth: '', filterAncienClient: '', sortColumn: 'name', sortDir: 'asc' }
+  const listState = { search, filterSector, filterDept, filterCommercial, showFilters, filterRelance, filterProposition, filterResult, filterDateYear, filterDateMonth, filterAncienClient, sortColumn, sortDir }
+  const setters = { search: setSearch, filterSector: setFilterSector, filterDept: setFilterDept, filterCommercial: setFilterCommercial, showFilters: setShowFilters, filterRelance: setFilterRelance, filterProposition: setFilterProposition, filterResult: setFilterResult, filterDateYear: setFilterDateYear, filterDateMonth: setFilterDateMonth, filterAncienClient: setFilterAncienClient, sortColumn: setSortColumn, sortDir: setSortDir }
+  const defaults = { search: '', filterSector: '', filterDept: '', filterCommercial: '', showFilters: false, filterRelance: false, filterProposition: '', filterResult: '', filterDateYear: '', filterDateMonth: '', filterAncienClient: '', sortColumn: 'name', sortDir: 'asc' }
   // Sauvegarde à chaque changement
   useEffect(() => { writeListState(filterStatus, listState) }, [filterStatus, ...LIST_STATE_KEYS.map(k => listState[k])])
   // Changement d'onglet prospects ↔ clients : recharge l'état propre à cet onglet
@@ -102,6 +103,13 @@ export default function Enterprises({ filterStatus }) {
     return map
   }, [actions])
 
+  // Résultat de la dernière action par entreprise
+  const lastActionResult = useMemo(() => {
+    const last = {}
+    actions.forEach(a => { if (!last[a.enterprise_id] || new Date(a.performed_at) > new Date(last[a.enterprise_id].performed_at)) last[a.enterprise_id] = a })
+    return Object.fromEntries(Object.entries(last).map(([id, a]) => [id, a.result || '']))
+  }, [actions])
+
   // Filter
   const filtered = useMemo(() => {
     return enterprises.filter(e => {
@@ -115,6 +123,8 @@ export default function Enterprises({ filterStatus }) {
       if (filterProposition === 'envoyee' && !e.proposition_envoyee_at) return false
       if (filterProposition === 'signee' && !e.proposition_signee_at) return false
       if (filterProposition === 'aucune' && (e.proposition_envoyee_at || e.proposition_signee_at)) return false
+      if (filterResult === 'aucune' && lastActionResult[e.id] !== undefined) return false
+      if (filterResult && filterResult !== 'aucune' && lastActionResult[e.id] !== filterResult) return false
       if (filterAncienClient === 'oui' && !e.dernier_contrat_at) return false
       if (filterAncienClient === 'non' && e.dernier_contrat_at) return false
       if (filterDateYear) {
@@ -126,7 +136,7 @@ export default function Enterprises({ filterStatus }) {
       }
       return true
     })
-  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterRelance, filterProposition, filterAncienClient, filterDateYear, filterDateMonth])
+  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterRelance, filterProposition, filterResult, lastActionResult, filterAncienClient, filterDateYear, filterDateMonth])
 
   // Sort
   const sorted = useMemo(() => {
@@ -194,7 +204,7 @@ export default function Enterprises({ filterStatus }) {
     return sortDir === 'asc' ? <ArrowUp size={12} className="text-germa-600" /> : <ArrowDown size={12} className="text-germa-600" />
   }
 
-  const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterDateYear, filterAncienClient].filter(Boolean).length
+  const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterResult, filterDateYear, filterAncienClient].filter(Boolean).length
 
   function clearFilters() {
     setFilterSector(''); setFilterDept(''); setFilterCommercial(''); setFilterProposition(''); setFilterDateYear(''); setFilterDateMonth(''); setFilterAncienClient('')
@@ -299,6 +309,14 @@ export default function Enterprises({ filterStatus }) {
               <option value="envoyee">Envoyée</option>
               <option value="signee">Signée</option>
               <option value="aucune">Aucune</option>
+            </select>
+          </div>
+          <div className="flex-1 min-w-[150px]">
+            <label className="block text-xs font-medium text-gray-500 mb-1">Dernier résultat</label>
+            <select value={filterResult} onChange={e => setFilterResult(e.target.value)} className="select-field text-sm">
+              <option value="">Tous</option>
+              {RESULTS.map(r => <option key={r} value={r}>{r}</option>)}
+              <option value="aucune">Aucune action</option>
             </select>
           </div>
           <div className="flex-1 min-w-[100px]">

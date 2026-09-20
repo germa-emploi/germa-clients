@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.22.0-démo'
+export const APP_DISPLAY_VERSION = '2.23.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.23.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Listes prospects/clients : nouveau filtre « Dernier résultat » (À relancer, RDV pris, Refus, Sans suite, Signé, ou aucune action)',
+    ],
+  },
   {
     version: '2.22.0-démo',
     date: '2026-09-20',
