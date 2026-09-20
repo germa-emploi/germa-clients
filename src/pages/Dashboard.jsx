@@ -216,7 +216,7 @@ export default function Dashboard() {
 
       {/* Navigation rapide */}
       <div className="sticky top-[38px] lg:top-[38px] z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-gray-50/95 backdrop-blur border-b border-gray-100 flex gap-2 overflow-x-auto">
-        {[['chiffres', '📊 Chiffres'], ['graphiques', '📈 Graphiques'], ['retard', '⚠️ En retard'], ['planifiees', '⏰ Planifiées'], ['jour', '✨ Du jour'], ['sans-suite', '🔁 Sans suite'], ['refus', '🚫 Refus']].map(([id, label]) => (
+        {[['chiffres', '📊 Chiffres'], ['graphiques', '📈 Graphiques'], ['relances', '⏰ Relances'], ['jour', '✨ Suggestions'], ['rouvrir', '🔁 Sans suite & refus']].map(([id, label]) => (
           <button key={id} onClick={() => document.getElementById(`bloc-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-germa-50 hover:border-germa-200">{label}</button>
         ))}
       </div>
@@ -367,8 +367,8 @@ export default function Dashboard() {
           )
         }
         return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div id="bloc-retard" className="scroll-mt-24 card p-4 sm:p-5 border-red-100">
+        <div id="bloc-relances" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="card p-4 sm:p-5 border-red-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-display font-semibold text-red-700 text-sm">⚠️ {isDirection ? 'Relances en retard' : 'Mes relances en retard'} <span className="text-xs font-normal text-gray-400">({lateAll.length})</span></h3>
             </div>
@@ -379,7 +379,7 @@ export default function Dashboard() {
             {!lateShowAll && lateAll.length > 15 && <button onClick={() => setLateShowAll(true)} className="mt-3 w-full text-sm font-medium text-red-700 hover:bg-red-50 rounded-xl py-2 border border-red-200">Voir toutes les relances en retard ({lateAll.length})</button>}
             {lateShowAll && lateAll.length > 15 && <button onClick={() => setLateShowAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>}
           </div>
-          <div id="bloc-planifiees" className="scroll-mt-24 card p-4 sm:p-5">
+          <div className="card p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <h3 className="font-display font-semibold text-gray-900 text-sm">⏰ {isDirection ? 'Relances planifiées' : 'Mes relances planifiées'} <span className="text-xs font-normal text-gray-400">({planned.length})</span></h3>
               <div className="flex items-center gap-1.5">
@@ -404,7 +404,7 @@ export default function Dashboard() {
       })()}
 
       <DailySuggestions suggestions={suggestions.filter(s => !s.kind || s.kind === 'jour')} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div id="bloc-rouvrir" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 gap-4">
         <ReopenBlock kind="sans_suite" title="Sans suite à relancer" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
         <ReopenBlock kind="refus" title="Refus à retenter" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
       </div>
@@ -698,7 +698,7 @@ function ReopenBlock({ kind, title, suggestions, enterprises, profiles, scores, 
   const ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗' }
   const tone = kind === 'refus' ? 'bg-rose-50/60 hover:bg-rose-50' : 'bg-slate-50/70 hover:bg-slate-100'
   return (
-    <div id={kind === 'refus' ? 'bloc-refus' : 'bloc-sans-suite'} className={`scroll-mt-24 card p-4 sm:p-5 ${kind === 'refus' ? 'border-rose-200' : 'border-slate-200'}`}>
+    <div className={`card p-4 sm:p-5 ${kind === 'refus' ? 'border-rose-200' : 'border-slate-200'}`}>
       <h3 className={`font-display font-semibold text-sm mb-3 ${kind === 'refus' ? 'text-rose-800' : 'text-slate-800'}`}>✨ {title} <span className="text-xs font-normal text-gray-400">({list.length})</span></h3>
       {list.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">Rien à rouvrir pour l'instant — recalculé chaque nuit.</p> : (
         <div className="space-y-1.5">

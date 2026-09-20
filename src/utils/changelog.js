@@ -5,7 +5,7 @@ export const CHANGELOG = [
     version: '2.31.0-démo',
     date: '2026-09-20',
     changes: [
-      'Tableau de bord : barre de navigation rapide (collée en haut au défilement) vers Chiffres, Graphiques, Relances en retard, Planifiées, Suggestions du jour, Sans suite, Refus',
+      'Tableau de bord : barre de navigation rapide (collée en haut au défilement) vers Chiffres, Graphiques, Relances, Suggestions, Sans suite & refus',
     ],
   },
   {
