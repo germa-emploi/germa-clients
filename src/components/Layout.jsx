@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History
+  History, Sparkles
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
   { to: '/historique', icon: History, label: 'Historique' },
+  { to: '/nouveautes-demo', icon: Sparkles, label: 'Nouveautés démo' },
 ]
 
 const adminItems = [

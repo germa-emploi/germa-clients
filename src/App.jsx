@@ -7,6 +7,7 @@ import Enterprises from './pages/Enterprises'
 import EnterpriseDetail from './pages/EnterpriseDetail'
 import Admin from './pages/Admin'
 import Historique from './pages/Historique'
+import NouveautesDemo from './pages/NouveautesDemo'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="clients" element={<Enterprises filterStatus="client" />} />
         <Route path="entreprises/:id" element={<EnterpriseDetail />} />
         <Route path="historique" element={<Historique />} />
+        <Route path="nouveautes-demo" element={<NouveautesDemo />} />
         <Route path="admin" element={
           <ProtectedRoute adminOnly>
             <Admin />
