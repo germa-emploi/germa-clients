@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.29.0-démo'
+export const APP_DISPLAY_VERSION = '2.30.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.30.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Deux blocs sous les suggestions du jour : « Sans suite à relancer » et « Refus à retenter » — jusqu\'à 5 prospects chacun, choisis chaque nuit par l\'assistant d\'après les commentaires, l\'ancienneté, la saison et l\'actualité presse/BOAMP, avec le fait qui justifie la relance ; un prospect suggéré ne revient pas avant 30 jours',
+    ],
+  },
   {
     version: '2.29.0-démo',
     date: '2026-09-20',

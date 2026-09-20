@@ -396,7 +396,11 @@ export default function Dashboard() {
         )
       })()}
 
-      <DailySuggestions suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+      <DailySuggestions suggestions={suggestions.filter(s => !s.kind || s.kind === 'jour')} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ReopenBlock kind="sans_suite" title="Sans suite à relancer" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+        <ReopenBlock kind="refus" title="Refus à retenter" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+      </div>
 
       {/* Chart modals */}
       {chartModal === 'activity' && <ActivityChartModal actions={actions} enterprises={enterprises} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}
@@ -674,6 +678,36 @@ function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirect
           </div>
         </div>
       ))}
+    </div>
+  )
+}
+
+
+// ✨ Relances suggérées parmi les « Sans suite » / « Refus » (calcul nocturne, table ia_suggestions kind=sans_suite|refus)
+function ReopenBlock({ kind, title, suggestions, enterprises, profiles, scores, isDirection, profileId, navigate }) {
+  const list = suggestions.filter(s => s.kind === kind && (isDirection || s.profile_id === profileId)).sort((a, b) => a.rank - b.rank)
+  const ents = Object.fromEntries(enterprises.map(e => [e.id, e]))
+  const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
+  const ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗' }
+  const tone = kind === 'refus' ? 'bg-rose-50/60 hover:bg-rose-50' : 'bg-slate-50/70 hover:bg-slate-100'
+  return (
+    <div className={`card p-4 sm:p-5 ${kind === 'refus' ? 'border-rose-200' : 'border-slate-200'}`}>
+      <h3 className={`font-display font-semibold text-sm mb-3 ${kind === 'refus' ? 'text-rose-800' : 'text-slate-800'}`}>✨ {title} <span className="text-xs font-normal text-gray-400">({list.length})</span></h3>
+      {list.length === 0 ? <p className="text-sm text-gray-400 py-4 text-center">Rien à rouvrir pour l'instant — recalculé chaque nuit.</p> : (
+        <div className="space-y-1.5">
+          {list.map(s => { const e = ents[s.enterprise_id]; if (!e) return null; return (
+            <div key={s.id} onClick={() => navigate(`/entreprises/${e.id}`)} className={`flex items-start gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${tone}`}>
+              <span className="text-xs font-bold w-4 pt-0.5 text-gray-500">{s.rank}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-2">{e.name}{scores[e.id] && <Flames score={scores[e.id].score} size="text-xs" title={scores[e.id].reason} />}</p>
+                <p className="text-xs text-gray-600">{s.reason}</p>
+                {isDirection && s.profile_id && <p className="text-[11px] text-gray-400 mt-0.5">{prof[s.profile_id] || '—'}</p>}
+              </div>
+              <span className="text-xs whitespace-nowrap text-gray-700" title={s.suggested_action}>{ICON[s.suggested_action] || '•'} {s.suggested_action}</span>
+            </div>
+          ) })}
+        </div>
+      )}
     </div>
   )
 }

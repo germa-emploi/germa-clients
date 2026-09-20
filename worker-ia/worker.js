@@ -55,6 +55,10 @@ Réponds UNIQUEMENT avec un JSON : {"match": true|false, "summary": "deux phrase
   veille_pistes: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique en Alsace : mise à disposition de personnel, intérim d'insertion, heures d'insertion sur marchés clausés). On te donne des titres et extraits d'articles régionaux. Repère les ENTREPRISES ou collectivités qui pourraient avoir besoin de main-d'œuvre en Alsace prochainement : marché public attribué (surtout avec clause sociale), chantier annoncé, ouverture ou extension de site, recrutement de volume, activité saisonnière. Ignore les particuliers, les associations sans activité économique, les entreprises hors Alsace, et les articles sans piste concrète. Pour chaque piste : le nom exact de l'entreprise, la ville si connue, le département (67, 68 ou vide), l'article (numéro) et une raison en 25 mots maximum.
 Réponds UNIQUEMENT avec un JSON : {"pistes": [{"article": 1, "company": "...", "city": "...", "department": "67", "why": "..."}]}`,
 
+  reopen: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des prospects dont le dernier contact s'est terminé par « {{KIND}} », avec le commentaire de ce contact, l'ancienneté, et le cas échéant une actualité récente (presse ou marché public). Choisis ceux qu'il serait pertinent de RELANCER MAINTENANT, jusqu'à 5, du plus prometteur au moins, en t'appuyant sur : un refus daté ou conditionnel dont l'échéance est passée (« pas pour l'instant », « après les vendanges », « quand le chantier démarrera ») ; un fait nouveau (marché gagné, chantier, extension, recrutement) ; une raison de refus qui a pu changer (autre agence en place, chantier reporté, RH absente, changement de direction) ; la saisonnalité (relancer 3 semaines avant la saison) ; un simple contact raté (répondeur, injoignable) vieux de plus de 2 mois. Écarte : « ne plus recontacter », cessation, retraite, main-d'œuvre structurellement interne ou étrangère, refus de principe répétés.
+Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site ; une raison en 25 mots maximum qui cite le fait précis qui justifie la relance.
+Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 5 éléments, sans texte autour : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -304,10 +308,52 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
     try {
       const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`)
       const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 5)
-      await sb(env, `ia_suggestions?date=eq.${today}&profile_id=eq.${p.id}`, { method: 'DELETE' })
-      if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, profile_id: p.id, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model }))) })
+      await sb(env, `ia_suggestions?date=eq.${today}&profile_id=eq.${p.id}&kind=eq.jour`, { method: 'DELETE' })
+      if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, kind: 'jour', profile_id: p.id, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model }))) })
       out.suggestions += picks.length; out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
     } catch (err) { out.errors.push(`${p.full_name}: ${err.message}`) }
+  }
+  return out
+}
+
+// ---------- Relances suggérées des « Sans suite » et « Refus » ----------
+async function reopenSuggestions(env, { date } = {}) {
+  const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
+  const [ents, acts, presse, prior] = await Promise.all([
+    sbAll(env, `enterprises?select=id,name,city,department,assigned_to,description_activite&status=eq.prospect`),
+    sbAll(env, `actions?select=enterprise_id,performed_at,result,comments&order=performed_at.desc`),
+    sbAll(env, `ia_veille?select=enterprise_id,title,summary,published_at,created_at&kind=eq.mention`),
+    sbAll(env, `ia_suggestions?select=enterprise_id,date&kind=in.(sans_suite,refus)`),
+  ])
+  const last = {}; acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
+  const pressBy = {}; presse.forEach(p => { (pressBy[p.enterprise_id] = pressBy[p.enterprise_id] || []).push(p) })
+  const cutoff30 = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const recentlySuggested = new Set(prior.filter(s => s.date >= cutoff30).map(s => s.enterprise_id))
+  const cutoff60 = new Date(Date.now() - 60 * 86400000).toISOString()
+  const cutoffPress = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const NEVER = /ne plus (re)?contacter|ne pas (re)?contacter|cessation|retraite|ferm[ée]e?|liquidation|hébergée sur place/i
+  const out = { date: today, sans_suite: 0, refus: 0, errors: [], tokens: 0 }
+  for (const [kind, label] of [['sans_suite', 'Sans suite'], ['refus', 'Refus']]) {
+    const cands = ents.map(e => ({ e, la: last[e.id], press: (pressBy[e.id] || []).filter(p => (p.published_at || p.created_at.slice(0, 10)) >= cutoffPress) }))
+      .filter(c => c.la && c.la.result === label && !recentlySuggested.has(c.e.id) && !NEVER.test(c.la.comments || '') && (c.la.comments || '').trim().length > 10 && (c.la.performed_at < cutoff60 || c.press.length))
+      // priorité : actu récente, puis mots-clés de condition/temporalité, puis ancienneté
+      .map(c => { const t = (c.la.comments || '').toLowerCase(); const cond = /(pour l'instant|pour le moment|actuellement|jusqu'|après |avant |rappeler|recontacter|reprendre|en 202|saison|vendange|chantier|report|agence|arrêt|absent|changement|direction|vente|complet)/.test(t) ? 1 : 0; return { ...c, score: (c.press.length ? 3 : 0) + cond } })
+      .sort((a, b) => b.score - a.score || a.la.performed_at.localeCompare(b.la.performed_at)).slice(0, 60)
+    if (!cands.length) continue
+    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} (${label}) : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 260)}${c.press.length ? ` | ACTU : ${c.press.map(p => `${fmtFR(p.published_at || p.created_at)} ${p.title}${p.summary ? ' — ' + p.summary : ''}`).join(' ; ').slice(0, 300)}` : ''}`).join('\n')
+    try {
+      const system = SYSTEM.reopen.replace('{{KIND}}', label)
+      const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 2000, system: system.replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: ctx }] }) })
+      const body = await r.text(); let data = {}; try { data = JSON.parse(body) } catch { throw new Error(`API ${r.status} : ${body.slice(0, 120)}`) }
+      if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
+      const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim(); const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
+      const result = JSON.parse(raw.slice(a, b + 1))
+      const byId = Object.fromEntries(cands.map(c => [c.e.id, c]))
+      const picks = (result.picks || []).filter(x => byId[x.id]).slice(0, 5)
+      await sb(env, `ia_suggestions?date=eq.${today}&kind=eq.${kind}`, { method: 'DELETE' })
+      if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, kind, profile_id: byId[x.id].e.assigned_to, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model: data.model }))) })
+      out[kind] = picks.length; out.tokens += (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)
+    } catch (err) { out.errors.push(`${label}: ${err.message}`) }
   }
   return out
 }
@@ -319,6 +365,7 @@ export default {
       const r1 = await nightlyScoring(env); console.log('Notation nocturne :', JSON.stringify(r1))
       const r2 = await dailySuggestions(env); console.log('Suggestions du jour :', JSON.stringify(r2))
       const r3 = await veille(env); console.log('Veille presse :', JSON.stringify(r3))
+      const r4 = await reopenSuggestions(env); console.log('Relances sans suite / refus :', JSON.stringify(r4))
     })())
   },
 
@@ -339,6 +386,12 @@ export default {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
       if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test', days: Number(b.days) || 0 })), { status: 200, headers }) }
+      catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
+    if (new URL(request.url).pathname === '/reopen') {
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      try { return new Response(JSON.stringify(await reopenSuggestions(env, { date: b.date })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/daily') {

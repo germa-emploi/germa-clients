@@ -80,10 +80,10 @@ export default function ActionsDuJour() {
       </div>
 
       <div className="card p-5 border-violet-200">
-        <h2 className="font-display font-semibold text-violet-800 text-sm mb-3">✨ Suggestions du jour <span className="text-xs font-normal text-gray-400">({suggestions.length})</span></h2>
+        <h2 className="font-display font-semibold text-violet-800 text-sm mb-3">✨ Suggestions du jour <span className="text-xs font-normal text-gray-400">({suggestions.filter(sg => !sg.kind || sg.kind === 'jour').length})</span></h2>
         <div className="space-y-2">
           {suggestions.length === 0 && <p className="text-sm text-gray-400 py-3 text-center">Pas de suggestions calculées pour aujourd'hui.</p>}
-          {suggestions.map(sg => { const e = entById[sg.enterprise_id]; if (!e) return null; return (
+          {suggestions.filter(sg => !sg.kind || sg.kind === 'jour').map(sg => { const e = entById[sg.enterprise_id]; if (!e) return null; return (
             <div key={sg.id} onClick={() => navigate(`/entreprises/${e.id}`)} className="px-4 py-3 rounded-xl bg-violet-50/70 hover:bg-violet-50 cursor-pointer transition-colors">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0"><p className="text-sm font-medium text-gray-900 flex items-center gap-2"><span className="text-xs font-bold text-violet-700">{sg.rank}</span>{e.name}{scores[e.id] && <Flames score={scores[e.id].score} size="text-xs" title={scores[e.id].reason} />}</p><p className="text-xs text-gray-600">{sg.reason}</p></div>
