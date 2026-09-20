@@ -59,13 +59,13 @@ Réponds UNIQUEMENT avec un JSON : {"pistes": [{"article": 1, "company": "...", 
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site ; une raison en 25 mots maximum qui cite le fait précis qui justifie la relance.
 Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 5 éléments, sans texte autour : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
-  urgence: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des relances en retard : pour chacune, l'entreprise, sa chaleur (1-5) et la raison, le nombre de jours de retard, la relance prévue, le dernier commentaire et l'actualité éventuelle. Attribue à chacune un niveau d'urgence :
-3 = urgent : besoin concret ou daté, interlocuteur engagé, proposition en cours, actualité favorable, ou retard qui met en péril une affaire ;
-2 = à faire : intérêt réel mais rien de brûlant, ou dossier tiède à ne pas laisser refroidir ;
-1 = peut attendre : porte entrouverte sans besoin, saison lointaine, simple contact raté ;
-0 = à solder : la relance n'a plus de sens (besoin passé, pas de besoin, refus implicite, contact obsolète) — le commercial devrait la clôturer.
-Pour chacune, une raison en 12 mots maximum. Dans les textes, jamais de guillemets droits ". Traite TOUTES les lignes reçues, sans commentaire ni explication.
-Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "why": "..."}]}`,
+  urgence: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des relances planifiées (en retard ou à venir) : pour chacune, l'entreprise, sa chaleur (1-5) et la raison, la date prévue et le retard éventuel, le dernier commentaire, la proposition en cours et l'actualité éventuelle.
+Pour chacune, donne :
+- level, l'urgence : 3 = urgent (besoin concret ou daté, interlocuteur engagé, proposition en cours, actualité favorable, retard qui met une affaire en péril) ; 2 = à faire (intérêt réel, dossier tiède à ne pas laisser refroidir) ; 1 = peut attendre (porte entrouverte sans besoin, saison lointaine, simple contact raté) ; 0 = à solder (la relance n'a plus de sens : besoin passé, pas de besoin, refus implicite, contact obsolète — à clôturer).
+- action, le meilleur moyen de relancer d'après le commentaire, parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition. Exemples : « préfère être contacté par mail » → Envoyer un mail ; « repasser voir le chef de chantier » → Passer sur site ; « attend des CV » → Envoyer des candidatures ; « demande un devis » → Envoyer une proposition ; sinon Appeler.
+- why, en 15 mots maximum, qui justifie à la fois l'urgence et le moyen choisi.
+Dans les textes, jamais de guillemets droits ". Traite TOUTES les lignes reçues, sans commentaire ni explication.
+Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "action": "...", "why": "..."}]}`,
 
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
@@ -143,7 +143,7 @@ async function askClaude(env, task, context, maxTokens = 4000) {
   try { return { result: JSON.parse(raw.slice(a, b + 1)), model: data.model, usage: data.usage } }
   catch (e) {
     if (/"picks"/.test(raw)) { try { return { result: parsePicks(raw), model: data.model, usage: data.usage } } catch { /* tombe dans l'erreur */ } }
-    if (/"items"/.test(raw)) { const items = []; const re = /"id"\s*:\s*"([^"]+)"[\s\S]*?"level"\s*:\s*(\d)[\s\S]*?"why"\s*:\s*"([\s\S]*?)"\s*\}/g; let m; while ((m = re.exec(raw))) items.push({ id: m[1], level: +m[2], why: m[3] }); if (items.length) return { result: { items }, model: data.model, usage: data.usage } }
+    if (/"items"/.test(raw)) { const items = []; const re = /"id"\s*:\s*"([^"]+)"[\s\S]*?"level"\s*:\s*(\d)(?:[\s\S]*?"action"\s*:\s*"([^"]+)")?[\s\S]*?"why"\s*:\s*"([\s\S]*?)"\s*\}/g; let m; while ((m = re.exec(raw))) items.push({ id: m[1], level: +m[2], action: m[3], why: m[4] }); if (items.length) return { result: { items }, model: data.model, usage: data.usage } }
     throw new Error(`JSON invalide (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
   }
 }
@@ -398,18 +398,19 @@ async function urgenceRelances(env, { force = false } = {}) {
   const prevBy = Object.fromEntries(prev.map(p => [p.enterprise_id, p.computed_at]))
   const touched = new Set(logs.map(l => l.target_id))
   const week = new Date(Date.now() - 7 * 86400000).toISOString()
-  const late = ents.map(e => ({ e, la: last[e.id] })).filter(c => c.la && c.la.result === 'À relancer' && c.la.next_action_date && c.la.next_action_date < today)
+  const late = ents.map(e => ({ e, la: last[e.id] })).filter(c => c.la && c.la.result === 'À relancer' && c.la.next_action_date)
   const todo = late.filter(c => force || !prevBy[c.e.id] || prevBy[c.e.id] < week || touched.has(c.e.id) || (c.la.performed_at > prevBy[c.e.id]))
-  const out = { total_late: late.length, analysed: 0, errors: [], tokens: 0 }
+  const out = { total_relances: late.length, analysed: 0, errors: [], tokens: 0 }
   const days = (d) => Math.round((new Date(today) - new Date(d)) / 86400000)
   for (let i = 0; i < todo.length; i += 20) {
     const lot = todo.slice(i, i + 20)
-    const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${sc.reason}` : ''} | retard ${days(c.la.next_action_date)} j (prévue le ${fmtFR(c.la.next_action_date)}, ${c.la.next_action || 'relance'})${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
+    const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${sc.reason}` : ''} | relance prévue le ${fmtFR(c.la.next_action_date)} (${c.la.next_action || 'relance'})${days(c.la.next_action_date) > 0 ? ` — EN RETARD de ${days(c.la.next_action_date)} j` : days(c.la.next_action_date) === 0 ? " — AUJOURD'HUI" : ` — dans ${-days(c.la.next_action_date)} j`}${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
     try {
       const { result, model, usage } = await askClaude(env, 'urgence', ctx, 6000)
       out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
       const byId = new Set(lot.map(c => c.e.id))
-      const rows = (result.items || []).filter(x => byId.has(x.id)).map(x => ({ enterprise_id: x.id, level: Math.max(0, Math.min(3, Math.round(Number(x.level)))), reason: String(x.why || '').slice(0, 200), model, computed_at: new Date().toISOString() }))
+      const ACTIONS = ['Appeler', 'Envoyer un mail', 'Passer sur site', 'Envoyer des candidatures', 'Envoyer une proposition']
+      const rows = (result.items || []).filter(x => byId.has(x.id)).map(x => ({ enterprise_id: x.id, level: Math.max(0, Math.min(3, Math.round(Number(x.level)))), suggested_action: ACTIONS.includes(x.action) ? x.action : 'Appeler', reason: String(x.why || '').slice(0, 200), model, computed_at: new Date().toISOString() }))
       if (rows.length) await sb(env, 'ia_urgences', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) })
       out.analysed += rows.length
     } catch (err) { out.errors.push(`lot ${i / 20 + 1}: ${err.message}`) }

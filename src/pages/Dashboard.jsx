@@ -350,6 +350,7 @@ export default function Dashboard() {
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
         const today = todayISO()
+        const ACT_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' }
         const URG = { 3: { label: 'Urgent', cls: 'bg-red-600 text-white' }, 2: { label: 'À faire', cls: 'bg-orange-500 text-white' }, 1: { label: 'Peut attendre', cls: 'bg-gray-200 text-gray-700' }, 0: { label: 'À solder', cls: 'bg-slate-700 text-white' } }
         const lvl = (a) => urgences[a.enterprise_id]?.level
         const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today).sort((a, b) => ((lvl(b) ?? -1) - (lvl(a) ?? -1)) || a.next_action_date.localeCompare(b.next_action_date))
@@ -368,9 +369,10 @@ export default function Dashboard() {
               <Clock size={14} className={late ? 'text-red-500' : isToday ? 'text-amber-500' : 'text-gray-400'} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate flex items-center gap-2">{late && urgences[action.enterprise_id] && <span className="text-sm leading-none tracking-tighter bg-white rounded-md px-1.5 py-0.5 shadow-sm border border-red-100" title={URG[urgences[action.enterprise_id].level].label}>{urgences[action.enterprise_id].level === 0 ? '🧹' : '🏃'.repeat(urgences[action.enterprise_id].level)}</span>}{ent?.name || '?'}</p>
-                <p className="text-xs text-gray-500">{late && urgences[action.enterprise_id]?.reason ? urgences[action.enterprise_id].reason : `${action.next_action} — ${performer?.full_name}`}</p>
+                <p className="text-xs text-gray-500">{urgences[action.enterprise_id]?.reason ? urgences[action.enterprise_id].reason : `${action.next_action} — ${performer?.full_name}`}</p>
               </div>
               {ent && scores[ent.id] && ent.status === 'prospect' && <Flames score={scores[ent.id].score} size="text-xs" title={scores[ent.id].reason} />}
+              {urgences[action.enterprise_id]?.suggested_action && <span className="text-xs text-violet-700 whitespace-nowrap hidden sm:inline" title={urgences[action.enterprise_id].reason}>{ACT_ICON[urgences[action.enterprise_id].suggested_action] || '•'} {urgences[action.enterprise_id].suggested_action}</span>}
               <span className={`text-xs font-medium ${late ? 'text-red-600' : isToday ? 'text-amber-700' : 'text-gray-600'}`}>{late ? '⚠️ ' : isToday ? "Aujourd'hui" : ''}{isToday ? '' : formatDate(action.next_action_date)}</span>
             </div>
           )

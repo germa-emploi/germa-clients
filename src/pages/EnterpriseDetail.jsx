@@ -27,6 +27,7 @@ export default function EnterpriseDetail() {
   const [showMail, setShowMail] = useState(false)
   const [heat, setHeat] = useState(null)
   const [presse, setPresse] = useState([])
+  const [conseil, setConseil] = useState(null)
   const [showBrief, setShowBrief] = useState(false)
   const [actions, setActions] = useState([])
   const [sectors, setSectors] = useState([])
@@ -49,6 +50,7 @@ export default function EnterpriseDetail() {
   async function loadData() {
     supabase.from('ia_scores').select('*').eq('enterprise_id', id).maybeSingle().then(({ data }) => setHeat(data || null))
     supabase.from('ia_veille').select('*').eq('enterprise_id', id).eq('kind', 'mention').order('created_at', { ascending: false }).then(({ data }) => setPresse(data || []))
+    supabase.from('ia_urgences').select('*').eq('enterprise_id', id).maybeSingle().then(({ data }) => setConseil(data || null))
     setLoading(true)
     const [entRes, actData, secData, profData, interData] = await Promise.all([
       supabase.from('enterprises').select('*').eq('id', id).single(),
@@ -275,6 +277,18 @@ export default function EnterpriseDetail() {
           </div>
         )}
       </div>
+
+      {conseil && (
+        <div className="card p-5 border-violet-200 bg-violet-50/40">
+          <h3 className="font-display font-semibold text-violet-800 text-sm mb-2">✨ Conseil de l'assistant pour la relance</h3>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-semibold text-gray-900 bg-white border border-violet-200 rounded-lg px-3 py-1.5">{({ 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' })[conseil.suggested_action] || '•'} {conseil.suggested_action || 'Appeler'}</span>
+            <span className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-1.5" title="Urgence">{conseil.level === 0 ? '🧹 À solder' : `${'🏃'.repeat(conseil.level)} ${['', 'Peut attendre', 'À faire', 'Urgent'][conseil.level]}`}</span>
+          </div>
+          <p className="text-sm text-gray-700 mt-2">{conseil.reason}</p>
+          <p className="text-xs text-gray-400 mt-1">Calculé le {formatDate(conseil.computed_at)} d'après les commentaires, la chaleur, la proposition en cours et l'actualité.</p>
+        </div>
+      )}
 
       {presse.length > 0 && (
         <div className="card p-5 border-blue-100">

@@ -11,9 +11,9 @@ const ITEMS = [
   { icon: Sparkles, title: 'Suggestions du jour', where: 'Tableau de bord, à droite des relances',
     what: 'Chaque nuit, l\'assistant choisit pour chaque commercial les 5 prospects à traiter le lendemain, avec l\'action conseillée et la raison.',
     why: 'Commencer la journée avec une liste courte plutôt qu\'une longue liste de relances.', mois: '1,70 €', an: '20 €', base: '2 commerciaux, un calcul par nuit' },
-  { icon: CalendarClock, title: 'Urgence des relances en retard', where: 'Tableau de bord, bloc Relances en retard',
-    what: 'Chaque nuit, l\'assistant classe les relances en retard en Urgent / À faire / Peut attendre / À solder, d\'après la chaleur, le retard, le dernier commentaire, la proposition en cours et l\'actualité. Les plus urgentes remontent en tête, avec la raison en une ligne.',
-    why: 'Ne plus subir une liste de 200 retards : savoir par quoi commencer, et quoi clôturer.', mois: '1 €', an: '12 €', base: 'recalcul seulement si la fiche a bougé ou après 7 jours' },
+  { icon: CalendarClock, title: 'Conseil sur chaque relance', where: 'Tableau de bord (relances en retard et planifiées) · fiche prospect',
+    what: 'Chaque nuit, l\'assistant classe les relances en Urgent / À faire / Peut attendre / À solder et conseille le moyen de relance (appeler, mail, passer sur site, envoyer des candidatures ou une proposition) d\'après le dernier commentaire, la chaleur, la proposition en cours et l\'actualité. Sur la fiche, un encart rappelle le conseil et le pourquoi.',
+    why: 'Savoir par quoi commencer, comment relancer, et quoi clôturer.', mois: '1,50 €', an: '18 €', base: 'recalcul seulement si la fiche a bougé ou après 7 jours' },
   { icon: Trophy, title: 'Sans suite et refus à rouvrir', where: 'Tableau de bord, sous les suggestions du jour',
     what: 'Chaque nuit, l\'assistant repère parmi les « sans suite » et les « refus » ceux dont la raison ne tient plus : refus daté dont l\'échéance est passée, marché ou chantier annoncé dans la presse, agence concurrente en place depuis longtemps, saison qui approche, contact raté vieux de plus de deux mois. Jusqu\'à 5 par catégorie, avec le fait précis qui justifie la relance.',
     why: 'Récupérer des dossiers qu\'on croyait perdus, au bon moment.', mois: '0,90 €', an: '11 €', base: '2 analyses par nuit' },
@@ -58,7 +58,7 @@ export default function NouveautesDemo() {
         ))}
       </div>
       <div className="card p-5 bg-violet-50 border-violet-200 text-sm text-violet-900 space-y-1">
-        <p><span className="font-semibold">Total estimé : environ 6 € par mois, 70 € par an</span>, pour toute l'équipe — calculé sur l'activité réelle (150 actions par mois) et les consommations mesurées pendant la démo. Le budget peut être plafonné sur le compte API.</p>
+        <p><span className="font-semibold">Total estimé : environ 6,50 € par mois, 75 € par an</span>, pour toute l'équipe — calculé sur l'activité réelle (150 actions par mois) et les consommations mesurées pendant la démo. Le budget peut être plafonné sur le compte API.</p>
         <p>Les données restent dans la base GERMA ; seul le contexte de la fiche concernée est envoyé à l'IA au moment du calcul, sans conservation de son côté.</p>
       </div>
     </div>

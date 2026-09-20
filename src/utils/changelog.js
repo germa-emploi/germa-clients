@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.34.0-démo'
+export const APP_DISPLAY_VERSION = '2.35.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.35.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Moyen de relance conseillé (Appeler, Envoyer un mail, Passer sur site, Envoyer des candidatures, Envoyer une proposition) sur chaque relance planifiée ou en retard, déduit par l\'assistant du dernier commentaire',
+      'Fiche prospect : encart « Conseil de l\'assistant pour la relance » avec le moyen, l\'urgence et l\'explication',
+    ],
+  },
   {
     version: '2.34.0-démo',
     date: '2026-09-20',
