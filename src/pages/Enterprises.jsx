@@ -13,7 +13,7 @@ const MONTHS_FR = ['Janv.', 'Févr.', 'Mars', 'Avr.', 'Mai', 'Juin', 'Juil.', 'A
 
 // Mémorise recherche, filtres et tri de la liste (par onglet prospects/clients) le temps de la session,
 // pour les retrouver intacts en revenant d'une fiche entreprise.
-const LIST_STATE_KEYS = ['search', 'filterSector', 'filterDept', 'filterCommercial', 'showFilters', 'filterRelance', 'filterProposition', 'filterResult', 'filterDateYear', 'filterDateMonth', 'filterAncienClient', 'sortColumn', 'sortDir']
+const LIST_STATE_KEYS = ['search', 'filterSector', 'filterDept', 'filterCommercial', 'showFilters', 'filterProposition', 'filterResult', 'filterDateYear', 'filterDateMonth', 'filterAncienClient', 'sortColumn', 'sortDir']
 function readListState(status) {
   try { return JSON.parse(sessionStorage.getItem(`gc_list_${status}`) || '{}') } catch { return {} }
 }
@@ -38,7 +38,6 @@ export default function Enterprises({ filterStatus }) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showMailing, setShowMailing] = useState(false)
   const [interlocuteurs, setInterlocuteurs] = useState([])
-  const [filterRelance, setFilterRelance] = useState(saved.filterRelance ?? false)
   const [filterProposition, setFilterProposition] = useState(saved.filterProposition ?? '')
   const [filterResult, setFilterResult] = useState(saved.filterResult ?? '')
   const [filterDateYear, setFilterDateYear] = useState(saved.filterDateYear ?? '')
@@ -47,9 +46,9 @@ export default function Enterprises({ filterStatus }) {
   const [sortColumn, setSortColumn] = useState(saved.sortColumn ?? 'name')
   const [sortDir, setSortDir] = useState(saved.sortDir ?? 'asc')
 
-  const listState = { search, filterSector, filterDept, filterCommercial, showFilters, filterRelance, filterProposition, filterResult, filterDateYear, filterDateMonth, filterAncienClient, sortColumn, sortDir }
-  const setters = { search: setSearch, filterSector: setFilterSector, filterDept: setFilterDept, filterCommercial: setFilterCommercial, showFilters: setShowFilters, filterRelance: setFilterRelance, filterProposition: setFilterProposition, filterResult: setFilterResult, filterDateYear: setFilterDateYear, filterDateMonth: setFilterDateMonth, filterAncienClient: setFilterAncienClient, sortColumn: setSortColumn, sortDir: setSortDir }
-  const defaults = { search: '', filterSector: '', filterDept: '', filterCommercial: '', showFilters: false, filterRelance: false, filterProposition: '', filterResult: '', filterDateYear: '', filterDateMonth: '', filterAncienClient: '', sortColumn: 'name', sortDir: 'asc' }
+  const listState = { search, filterSector, filterDept, filterCommercial, showFilters, filterProposition, filterResult, filterDateYear, filterDateMonth, filterAncienClient, sortColumn, sortDir }
+  const setters = { search: setSearch, filterSector: setFilterSector, filterDept: setFilterDept, filterCommercial: setFilterCommercial, showFilters: setShowFilters, filterProposition: setFilterProposition, filterResult: setFilterResult, filterDateYear: setFilterDateYear, filterDateMonth: setFilterDateMonth, filterAncienClient: setFilterAncienClient, sortColumn: setSortColumn, sortDir: setSortDir }
+  const defaults = { search: '', filterSector: '', filterDept: '', filterCommercial: '', showFilters: false, filterProposition: '', filterResult: '', filterDateYear: '', filterDateMonth: '', filterAncienClient: '', sortColumn: 'name', sortDir: 'asc' }
   // Sauvegarde à chaque changement
   useEffect(() => { writeListState(filterStatus, listState) }, [filterStatus, ...LIST_STATE_KEYS.map(k => listState[k])])
   // Changement d'onglet prospects ↔ clients : recharge l'état propre à cet onglet
@@ -115,7 +114,6 @@ export default function Enterprises({ filterStatus }) {
       if (filterDept && e.department !== filterDept) return false
       if (filterCommercial === '__none__' && e.assigned_to) return false
       if (filterCommercial && filterCommercial !== '__none__' && e.assigned_to !== filterCommercial) return false
-      if (filterRelance && !e.a_relancer) return false
       if (filterProposition === 'envoyee' && !e.proposition_envoyee_at) return false
       if (filterProposition === 'signee' && !e.proposition_signee_at) return false
       if (filterProposition === 'aucune' && (e.proposition_envoyee_at || e.proposition_signee_at)) return false
@@ -132,7 +130,7 @@ export default function Enterprises({ filterStatus }) {
       }
       return true
     })
-  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterRelance, filterProposition, filterResult, lastActionResult, filterAncienClient, filterDateYear, filterDateMonth])
+  }, [enterprises, search, filterStatus, filterSector, filterDept, filterCommercial, filterProposition, filterResult, lastActionResult, filterAncienClient, filterDateYear, filterDateMonth])
 
   // Sort
   const sorted = useMemo(() => {
@@ -246,17 +244,6 @@ export default function Enterprises({ filterStatus }) {
           />
         </div>
         <button
-          onClick={() => setFilterRelance(!filterRelance)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-            filterRelance
-              ? 'bg-amber-500 text-white shadow-md'
-              : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
-          }`}
-        >
-          🔔 À relancer
-          {filterRelance && <span className="text-xs">({enterprises.filter(e => e.a_relancer && (!filterStatus || e.status === filterStatus)).length})</span>}
-        </button>
-        <button
           onClick={() => setShowFilters(!showFilters)}
           className={`btn-secondary flex items-center gap-2 ${activeFilters > 0 ? '!border-germa-500 !text-germa-700' : ''}`}
         >
@@ -357,7 +344,6 @@ export default function Enterprises({ filterStatus }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-100">
-                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 w-8">🔔</th>
                   <Th label="Entreprise" col="name" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} />
                   <Th label="Secteur" col="sector" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} />
                   <Th label="Dpt" col="department" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
@@ -380,7 +366,6 @@ export default function Enterprises({ filterStatus }) {
                       onClick={() => navigate(`/entreprises/${ent.id}`)}
                       className="border-b border-gray-50 hover:bg-germa-50/50 cursor-pointer transition-colors"
                     >
-                      <td className="px-3 py-3 text-center">{ent.a_relancer ? '🔔' : ''}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">
                         <div className="flex items-center gap-2">
                           {ent.name}

@@ -8,7 +8,7 @@ import {
 } from 'recharts'
 import {
   TrendingUp, Building2, Users, Phone, CalendarCheck, UserCheck,
-  ArrowRight, Clock, Target, BarChart3, AlertTriangle, Bell, CheckCircle2, XCircle, X, Maximize2
+  ArrowRight, Clock, Target, BarChart3, AlertTriangle, CheckCircle2, XCircle, X, Maximize2
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { formatDate, RESULT_COLORS, STATUS_COLORS } from '../utils/constants'
@@ -70,7 +70,6 @@ export default function Dashboard() {
     const totalEnterprises = enterprises.length
     const prospects = enterprises.filter(e => e.status === 'prospect').length
     const clients = enterprises.filter(e => e.status === 'client').length
-    const aRelancer = enterprises.filter(e => e.a_relancer && (isDirection || e.assigned_to === profile?.id)).length
     const conversionsAnnee = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear).length
     const conversionsMois = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear && new Date(e.converted_at).getMonth() === thisMonth).length
     const rdvAnnee = actions.filter(a => a.result === 'RDV pris' && new Date(a.performed_at).getFullYear() === thisYear).length
@@ -114,8 +113,7 @@ export default function Dashboard() {
     const upcomingRelances = Object.values(latestActionByEnt)
       .filter(a => a.next_action_date && a.result === 'À relancer' && mine(a.enterprise_id))
       .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date))
-    const entreprisesARelancer = enterprises.filter(e => e.a_relancer && mine(e.id)).slice(0, 8)
-    return { totalEnterprises, prospects, clients, aRelancer, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances, entreprisesARelancer }
+    return { totalEnterprises, prospects, clients, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances }
   }, [enterprises, actions, profiles, sectors, isDirection, profile?.id])
 
   // Activity chart data builder
@@ -320,27 +318,6 @@ export default function Dashboard() {
       </div>
 
       {/* Entreprises à relancer */}
-      {stats.entreprisesARelancer.length > 0 && (
-        <div className="card p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-semibold text-gray-900 text-sm">🔔 {isDirection ? 'Entreprises à relancer' : 'Mes entreprises à relancer'}</h3>
-            <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-lg">{stats.aRelancer} total</span>
-          </div>
-          <div className="space-y-1.5">
-            {stats.entreprisesARelancer.map(ent => {
-              const sector = sectors.find(s => s.id === ent.sector_id)
-              return (
-                <div key={ent.id} onClick={() => navigate(`/entreprises/${ent.id}`)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50/50 hover:bg-amber-50 cursor-pointer transition-colors">
-                  <Bell size={14} className="text-amber-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent.name}</p><p className="text-xs text-gray-500">{sector?.name || '—'} · {ent.department || '—'}</p></div>
-                  <span className={`text-xs px-2 py-0.5 rounded-lg ${ent.status === 'client' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{ent.status === 'client' ? 'Client' : 'Prospect'}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Relances */}
       {stats.upcomingRelances.length > 0 && (() => {
         const relYears = [...new Set(stats.upcomingRelances.map(a => new Date(a.next_action_date).getFullYear()))].sort()
