@@ -2,6 +2,8 @@
 
 Application de suivi de prospection commerciale pour **GERMA Emploi ETTI**.
 
+> **Avant toute intervention, lire `docs/EXPLOITATION.md`** (environnements prod/démo, règles de livraison, versionnage, rollback, base de données). Sur la branche `demo-ia`, lire aussi `docs/ARCHITECTURE-IA.md`.
+
 ## Stack technique
 
 - **Frontend** : React 18 + Vite + Tailwind CSS

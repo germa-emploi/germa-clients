@@ -81,3 +81,51 @@ create table activity_log (
   details text,
   created_at timestamptz not null default now()
 );
+
+-- ============================================================
+-- Tables de l'assistant IA (alimentées par le Worker germaclients-ia, lues par la branche démo)
+-- Scripts d'origine : supabase/migrations/*_ia_*.sql
+-- ============================================================
+create table ia_scores (
+  enterprise_id uuid primary key references enterprises(id) on delete cascade,
+  score smallint not null check (score between 1 and 5),
+  reason text not null,
+  model text,
+  source text,
+  computed_at timestamptz not null default now()
+);
+create table ia_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  kind text not null default 'jour',            -- jour | sans_suite | refus
+  profile_id uuid references profiles(id) on delete cascade,
+  enterprise_id uuid not null references enterprises(id) on delete cascade,
+  rank smallint not null,
+  suggested_action text,
+  reason text not null,
+  model text,
+  created_at timestamptz not null default now(),
+  unique (date, kind, enterprise_id)
+);
+create table ia_veille (
+  id uuid primary key default gen_random_uuid(),
+  kind text not null check (kind in ('mention','piste')),
+  enterprise_id uuid references enterprises(id) on delete cascade,
+  company_name text, city text, department text,
+  title text not null, url text not null, source text, published_at date,
+  summary text, why text,
+  status text not null default 'new' check (status in ('new','read','created','ignored')),
+  created_enterprise_id uuid references enterprises(id) on delete set null,
+  model text,
+  created_at timestamptz not null default now(),
+  unique (url, kind, enterprise_id, company_name)
+);
+create table ia_veille_vu (url text primary key, seen_at timestamptz not null default now());
+create table ia_urgences (
+  enterprise_id uuid primary key references enterprises(id) on delete cascade,
+  level smallint not null check (level between 0 and 3),   -- 3 urgent · 2 à faire · 1 peut attendre · 0 à solder
+  suggested_action text,
+  reason text,
+  model text,
+  computed_at timestamptz not null default now()
+);

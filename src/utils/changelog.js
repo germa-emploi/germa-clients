@@ -7,6 +7,7 @@ export const CHANGELOG = [
     changes: [
       '✨ Moyen de relance conseillé (Appeler, Envoyer un mail, Passer sur site, Envoyer des candidatures, Envoyer une proposition) sur chaque relance planifiée ou en retard, déduit par l\'assistant du dernier commentaire',
       'Fiche prospect : encart « Conseil de l\'assistant pour la relance » avec le moyen, l\'urgence et l\'explication',
+      'Documentation dans le repo : docs/EXPLOITATION.md, docs/ARCHITECTURE-IA.md, supabase/migrations/, schéma complété',
     ],
   },
   {
@@ -205,6 +206,26 @@ export const CHANGELOG = [
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
+  },
+  {
+    version: '2.22.0',
+    date: '2026-09-20',
+    changes: ['Listes : bouton « Réinitialiser » à côté de « Filtres », visible dès qu\'une recherche, un filtre ou un tri est actif — remet tout à zéro d\'un clic'],
+  },
+  {
+    version: '2.21.1',
+    date: '2026-09-20',
+    changes: ['Les filtres et tris des listes sont oubliés à la déconnexion (ils restent mémorisés le temps de la session)'],
+  },
+  {
+    version: '2.21.0',
+    date: '2026-09-20',
+    changes: ['Menu (direction) : encart « Actions du jour » avec un bouton par commercial actif ; la page liste ses relances du jour et en retard avec les coordonnées, pour assurer le suivi en cas d\'absence'],
+  },
+  {
+    version: '2.20.0',
+    date: '2026-09-20',
+    changes: ['Tableau de bord : les relances sont séparées en deux blocs côte à côte — « Relances en retard » (rouge) et « Relances planifiées » (aujourd\'hui et à venir, filtrables par année et mois). Les relances du jour sont surlignées en orange'],
   },
   {
     version: '2.19.1',
