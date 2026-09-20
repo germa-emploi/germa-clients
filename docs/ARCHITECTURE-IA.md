@@ -32,11 +32,13 @@ Cron : `0 1 * * *` (1 h UTC = 3 h Paris en été, 2 h en hiver).
 2. **Suggestions du jour** (`dailySuggestions`) — par commercial actif (rôle `commercial`, comptes techniques exclus) : candidats = ses prospects à ≥ 3 flammes (40 max envoyés), l'IA en classe jusqu'à 15 → `ia_suggestions` (`kind = jour`).
 3. **Veille presse / BOAMP** (`veille`) — sources RSS (DNA économie, L'Alsace économie, Rue89 Strasbourg) + API BOAMP open data (67 et 68, 60 derniers avis). Correspondance des noms avec la base **dans le Worker** (gratuit) ; l'IA ne voit que les correspondances (→ `ia_veille kind=mention`) et 40 articles récents pour détecter des pistes (→ `kind=piste`). Articles analysés mémorisés dans `ia_veille_vu`.
 4. **Sans suite / Refus à rouvrir** (`reopenSuggestions`) — 60 candidats par catégorie (commentaire, > 60 j ou actu récente, hors « ne plus recontacter »), l'IA en retient ≤ 5 → `ia_suggestions` (`kind = sans_suite | refus`). Un prospect suggéré ne revient pas avant 30 jours.
-5. **Conseil sur les relances** (`urgenceRelances`) — toutes les relances datées (retard et à venir) : urgence 0-3 + moyen conseillé + raison → `ia_urgences`. Recalcul seulement si la fiche a bougé ou après 7 jours ; purge des relances disparues.
+5. **Conseil sur les relances** (`urgenceRelances`) — toutes les relances datées (retard et à venir, clients compris) : urgence 0-3 + moyen conseillé + raison → `ia_urgences`. Recalcul seulement si la fiche a bougé ou après 7 jours ; purge des relances disparues.
+   - Niveaux : 3 = urgent 🏃🏃🏃 · 2 = à faire 🏃🏃 · 1 = peut attendre 🏃 · 0 = **à solder** 🧹 (la relance n'a plus de sens — besoin passé, pas de besoin, refus implicite, contact obsolète : enregistrer un « Sans suite » plutôt que rappeler).
+   - Moyens : Appeler · Envoyer un mail · Passer sur site · Envoyer des candidatures · Envoyer une proposition · **Aucune action pour l'instant** ⏸️ (relance future déjà programmée, rien à faire avant).
 
 ## Tâches à la demande (depuis le site)
 
-`POST` sur l'URL du Worker avec `{ task, context }` : `mail`, `brief`, `relance_date`, `priorities`, `score`, `daily`, `veille_mention`, `veille_pistes`, `reopen`, `urgence`. Les consignes (system prompts) sont dans l'objet `SYSTEM` du Worker — c'est là qu'on règle le ton et les règles.
+`POST` sur l'URL du Worker avec `{ task, context }` : `mail` (brouillon, tient compte de la presse si la case est cochée), `brief`, `relance_date` (propose le **type de prochaine action** dans la liste fermée **et sa date**, d'après le contexte complet de la fiche + le commentaire en cours de saisie), `score`, `daily`, `veille_mention`, `veille_pistes`, `reopen`, `urgence`. `priorities` existe encore mais n'est plus appelée (fonction « Priorités de la semaine » retirée en 2.36.1). Les consignes (system prompts) sont dans l'objet `SYSTEM` du Worker — c'est là qu'on règle le ton et les règles.
 
 ## Commandes manuelles (PowerShell)
 
@@ -75,7 +77,7 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 
 - `src/demo/demo.js` : `AI_WORKER_URL`, `aiRequest`, `buildContext` (contexte textuel envoyé à l'IA, presse incluse), gabarits de repli si le Worker ne répond pas.
 - `src/lib/supabase.js` : `makeReadOnly` — bloque insert/update/delete/rpc et les opérations de compte, avec message à l'écran.
-- Pages spécifiques démo : `NouveautesDemo.jsx` (présentation pour le comité de direction, avec coûts), `Presse.jsx`. Composants IA dans `EnterpriseDetail.jsx` (mail, brief, date de relance) et `Dashboard.jsx` (priorités, suggestions, sans suite/refus, urgence).
+- Pages spécifiques démo : `NouveautesDemo.jsx` (présentation pour le comité de direction, avec coûts), `Presse.jsx`, `ActionsDuJour.jsx` (avec les suggestions du jour). Composants IA dans `EnterpriseDetail.jsx` (mail, brief, prochaine action suggérée, chaleur et conseil intégrés à la carte principale, fenêtre « Historique de la fiche » lisant `activity_log`) et `Dashboard.jsx` (barre de navigation rapide, suggestions du jour avec « Voir plus », sans suite/refus à rouvrir, urgence et moyen conseillé sur les relances, badge Client).
 - `index.html` a un titre « DÉMO · » : ne pas le reporter en prod lors d'une fusion inverse.
 
 ## Coûts mesurés (Sonnet 5 : 2 $/M tokens en entrée, 10 $/M en sortie)
