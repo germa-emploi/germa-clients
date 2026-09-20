@@ -139,7 +139,7 @@ async function askClaude(env, task, context, maxTokens = 4000) {
   if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
   const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
   const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
-  if (a < 0 || b < a) throw new Error(`réponse sans JSON (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
+  if (a < 0 || b < a) throw new Error(`réponse sans JSON (${data.stop_reason || '?'}, blocs: ${(data.content || []).map(c => c.type).join(',') || 'aucun'}, sortie ${data.usage?.output_tokens ?? '?'} tokens) : ${raw.slice(0, 120)}`)
   try { return { result: JSON.parse(raw.slice(a, b + 1)), model: data.model, usage: data.usage } }
   catch (e) {
     if (/"picks"/.test(raw)) { try { return { result: parsePicks(raw), model: data.model, usage: data.usage } } catch { /* tombe dans l'erreur */ } }
@@ -329,7 +329,7 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
     out.commercials++
     const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${c.sc?.score ?? '?'}/5 : ${c.sc?.reason || '—'} | dernier contact ${fmtFR(c.la.performed_at)} (${c.la.result || '?'})${c.la.next_action_date ? ` | relance prévue ${fmtFR(c.la.next_action_date)}${c.la.next_action ? ` (${c.la.next_action})` : ''}` : ''}${c.e.a_relancer ? ' | drapeau à relancer' : ''} | commentaire : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}`).join('\n')
     try {
-      const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`)
+      const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`, 12000)
       const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 15)
       await sb(env, `ia_suggestions?date=eq.${today}&profile_id=eq.${p.id}&kind=eq.jour`, { method: 'DELETE' })
       if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, kind: 'jour', profile_id: p.id, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model }))) })
