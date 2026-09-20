@@ -101,12 +101,15 @@ async function askClaude(env, task, context) {
   const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 900, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
+    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 2500, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
   })
   const data = await r.json()
   if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
-  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
-  return { result: JSON.parse(text), model: data.model, usage: data.usage }
+  const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
+  const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
+  if (a < 0 || b < a) throw new Error(`réponse sans JSON (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`)
+  try { return { result: JSON.parse(raw.slice(a, b + 1)), model: data.model, usage: data.usage } }
+  catch (e) { throw new Error(`JSON invalide (${data.stop_reason || '?'}) : ${raw.slice(0, 120)}`) }
 }
 async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {}) {
   if (hours <= 0 && !force.length) return { scanned: 0, scored: 0, skipped: 0, errors: [] }
