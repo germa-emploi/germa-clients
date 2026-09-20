@@ -33,6 +33,9 @@ export default function Dashboard() {
   const now = new Date()
   // KPI card filter for Actions
   const [kpiActYear, setKpiActYear] = useState(now.getFullYear())
+  const [relYear, setRelYear] = useState('')   // '' = toutes années
+  const [relMonth, setRelMonth] = useState('') // '' = tous mois
+  const [relAll, setRelAll] = useState(false)  // afficher toutes les relances (sans limite)
   const [kpiActMonth, setKpiActMonth] = useState(now.getMonth())
 
   useEffect(() => { loadData() }, [])
@@ -110,7 +113,7 @@ export default function Dashboard() {
     const mine = (entId) => isDirection || enterprises.find(e => e.id === entId)?.assigned_to === profile?.id
     const upcomingRelances = Object.values(latestActionByEnt)
       .filter(a => a.next_action_date && a.result === 'À relancer' && mine(a.enterprise_id))
-      .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 15)
+      .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date))
     const entreprisesARelancer = enterprises.filter(e => e.a_relancer && mine(e.id)).slice(0, 8)
     return { totalEnterprises, prospects, clients, aRelancer, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances, entreprisesARelancer }
   }, [enterprises, actions, profiles, sectors, isDirection, profile?.id])
@@ -339,11 +342,27 @@ export default function Dashboard() {
       )}
 
       {/* Relances */}
-      {stats.upcomingRelances.length > 0 && (
+      {stats.upcomingRelances.length > 0 && (() => {
+        const relYears = [...new Set(stats.upcomingRelances.map(a => new Date(a.next_action_date).getFullYear()))].sort()
+        const filteredRel = stats.upcomingRelances.filter(a => { const d = new Date(a.next_action_date); return (relYear === '' || d.getFullYear() === Number(relYear)) && (relMonth === '' || d.getMonth() === Number(relMonth)) })
+        const shownRel = relAll ? filteredRel : filteredRel.slice(0, 15)
+        return (
         <div className="card p-4 sm:p-5">
-          <h3 className="font-display font-semibold text-gray-900 mb-3 text-sm">⏰ {isDirection ? 'Prochaines relances planifiées' : 'Mes prochaines relances'}</h3>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h3 className="font-display font-semibold text-gray-900 text-sm">⏰ {isDirection ? 'Prochaines relances planifiées' : 'Mes prochaines relances'} <span className="text-xs font-normal text-gray-400">({filteredRel.length})</span></h3>
+            <div className="flex items-center gap-1.5">
+              <select value={relYear} onChange={e => setRelYear(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
+                <option value="">Toutes années</option>{relYears.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+              <select value={relMonth} onChange={e => setRelMonth(e.target.value)} className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white text-gray-600">
+                <option value="">Tous mois</option>{MONTHS_FR.map((m, i) => <option key={i} value={i}>{m}</option>)}
+              </select>
+              {(relYear || relMonth) && <button onClick={() => { setRelYear(''); setRelMonth('') }} className="text-xs text-gray-500 hover:text-germa-700 px-1">✕</button>}
+            </div>
+          </div>
           <div className="space-y-1.5">
-            {stats.upcomingRelances.map(action => {
+            {filteredRel.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune relance sur cette période.</p>}
+            {shownRel.map(action => {
               const ent = enterprises.find(e => e.id === action.enterprise_id)
               const performer = profiles.find(p => p.id === action.performed_by)
               const isOverdue = new Date(action.next_action_date) < new Date()
@@ -356,8 +375,15 @@ export default function Dashboard() {
               )
             })}
           </div>
+          {!relAll && filteredRel.length > 15 && (
+            <button onClick={() => setRelAll(true)} className="mt-3 w-full text-sm font-medium text-germa-700 hover:bg-germa-50 rounded-xl py-2 border border-germa-200">Voir toutes les relances ({filteredRel.length})</button>
+          )}
+          {relAll && filteredRel.length > 15 && (
+            <button onClick={() => setRelAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>
+          )}
         </div>
-      )}
+        )
+      })()}
 
       {/* Chart modals */}
       {chartModal === 'activity' && <ActivityChartModal actions={actions} enterprises={enterprises} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}

@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.15.1'
+export const APP_DISPLAY_VERSION = '2.16.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.16.0',
+    date: '2026-09-20',
+    changes: [
+      'Tableau de bord : les relances planifiées se filtrent par année et par mois, avec un bouton « Voir toutes les relances » au-delà des 15 premières',
+    ],
+  },
   {
     version: '2.15.1',
     date: '2026-09-20',
