@@ -23,8 +23,8 @@ const ITEMS = [
   { icon: ClipboardList, title: 'Brief avant l\'appel', where: 'Fiche entreprise',
     what: 'Résumé en cinq points : qui est l\'interlocuteur, où en est la relation, ce qu\'il faut savoir, l\'angle conseillé, les questions à poser.',
     why: 'Reprendre un dossier de dix actions en 30 secondes.', mois: '0,30 €', an: '4 €', base: '~60 briefs par mois' },
-  { icon: CalendarClock, title: 'Date de relance suggérée', where: 'Nouvelle action « À relancer »',
-    what: 'D\'après le commentaire saisi (« rappeler jeudi », « pas de besoin avant novembre »), l\'assistant propose la date et le type de relance. Le commercial garde la main.',
+  { icon: CalendarClock, title: 'Prochaine action suggérée', where: 'Nouvelle action « À relancer »',
+    what: 'D\'après tout le contexte de la fiche et le commentaire saisi (« rappeler jeudi », « préfère un mail », « attend des CV »), l\'assistant propose le type de prochaine action et sa date. Le commercial garde la main.',
     why: 'Des relances planifiées systématiquement, sans calcul de date.', mois: '0,10 €', an: '1,20 €', base: '~80 relances par mois' },
 ]
 

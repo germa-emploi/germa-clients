@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.36.1-démo'
+export const APP_DISPLAY_VERSION = '2.37.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.37.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Dans une action « À relancer », le bouton « Suggérer la prochaine action » propose à la fois le type de prochaine action et sa date, d\'après tout le contexte de la fiche et le commentaire saisi (message si le commentaire est vide)',
+    ],
+  },
   {
     version: '2.36.1-démo',
     date: '2026-09-20',

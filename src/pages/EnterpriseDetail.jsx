@@ -364,11 +364,11 @@ export default function EnterpriseDetail() {
       )}
 
       {/* Modals */}
-      {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
+      {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} ctx={{ enterprise, actions, interlocuteurs, profile, sector: sector?.name, presse }} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
       {showHistory && <HistoryModal enterprise={enterprise} profiles={profiles} onClose={() => setShowHistory(false)} />}
       {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} presse={presse} onClose={() => setShowMail(false)} />}
       {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} presse={presse} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
-      {editingAction && <EditActionModal action={editingAction} enterpriseName={enterprise.name} onClose={() => setEditingAction(null)} onSaved={() => { setEditingAction(null); loadData() }} />}
+      {editingAction && <EditActionModal action={editingAction} enterpriseName={enterprise.name} ctx={{ enterprise, actions, interlocuteurs, profile, sector: sector?.name, presse }} onClose={() => setEditingAction(null)} onSaved={() => { setEditingAction(null); loadData() }} />}
       {showEditEnterprise && <EditEnterpriseModal enterprise={enterprise} sectors={sectors} profiles={profiles} onClose={() => setShowEditEnterprise(false)} onSaved={() => { setShowEditEnterprise(false); loadData() }} />}
       {showAddInterlocuteur && <AddInterlocuteurModal enterpriseId={id} onClose={() => setShowAddInterlocuteur(false)} onCreated={() => { setShowAddInterlocuteur(false); loadData() }} />}
       {editingInterlocuteur && <EditInterlocuteurModal inter={editingInterlocuteur} onClose={() => setEditingInterlocuteur(null)} onSaved={() => { setEditingInterlocuteur(null); loadData() }} />}
@@ -380,7 +380,7 @@ export default function EnterpriseDetail() {
 }
 
 // ===================== ADD ACTION MODAL =====================
-function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
+function AddActionModal({ enterpriseId, enterpriseName, ctx, onClose, onCreated }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: 'Relance téléphonique', next_action_date: '', comments: '', contact: '' })
   const [saving, setSaving] = useState(false)
@@ -417,7 +417,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
-          <RelanceSuggestion form={form} setForm={setForm} />
+          <RelanceSuggestion form={form} setForm={setForm} ctx={ctx} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">{saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={16} />}<span>Enregistrer</span></button>
@@ -429,7 +429,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
 }
 
 // ===================== EDIT ACTION MODAL =====================
-function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
+function EditActionModal({ action, enterpriseName, ctx, onClose, onSaved }) {
   const { profile } = useAuth()
   const [form, setForm] = useState({
     performed_date: action.performed_at ? toLocalDateISO(action.performed_at) : todayISO(),
@@ -480,7 +480,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
-          <RelanceSuggestion form={form} setForm={setForm} />
+          <RelanceSuggestion form={form} setForm={setForm} ctx={ctx} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
@@ -944,39 +944,41 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
 }
 
 
-// ✨ Suggestion de date de relance à partir du commentaire (IA, repli sur l'analyse locale)
-function RelanceSuggestion({ form, setForm }) {
+// ✨ Suggestion de la prochaine action et de sa date, d'après le contexte de la fiche et le commentaire saisi
+function RelanceSuggestion({ form, setForm, ctx }) {
   const [busy, setBusy] = useState(false)
-  const [sug, setSug] = useState(null)   // { date, label, why, source }
-  const [warn, setWarn] = useState(false) // fenêtre "veuillez saisir un commentaire"
+  const [sug, setSug] = useState(null)
+  const [warn, setWarn] = useState(false)
   const suggest = async () => {
     if ((form.comments || '').trim().length < 6) { setWarn(true); return }
     setBusy(true); setSug(null)
-    const res = await aiRequest('relance_date', `Date du jour : ${todayISO()}\nCommentaire : ${form.comments}`)
+    const context = ctx ? buildContext({ enterprise: ctx.enterprise, actions: ctx.actions, interlocuteurs: ctx.interlocuteurs, profile: ctx.profile, sector: ctx.sector, presse: ctx.presse }) : ''
+    const res = await aiRequest('relance_date', `${context}\n\nAction en cours de saisie (${form.action_type}, résultat ${form.result}) — commentaire : ${form.comments}\nDate du jour : ${todayISO()}`)
     let r
-    if (res?.result && ('date' in res.result)) r = { date: res.result.date || '', label: res.result.label || 'Relance', why: res.result.why || '', source: res.model }
-    else { const p = parseFreeText(form.comments); r = { date: p.next_action_date || '', label: p.next_action || 'Relance', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
+    if (res?.result && ('date' in res.result)) r = { date: res.result.date || '', label: NEXT_ACTIONS.includes(res.result.label) ? res.result.label : 'Relance téléphonique', why: res.result.why || '', source: res.model }
+    else { const p = parseFreeText(form.comments); r = { date: p.next_action_date || '', label: 'Relance téléphonique', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
     setSug(r); setBusy(false)
-    if (r.date) setForm(f => ({ ...f, next_action_date: r.date, next_action: NEXT_ACTIONS.includes(r.label) ? r.label : (f.next_action || 'Relance téléphonique') }))
+    if (r.date) setForm(f => ({ ...f, next_action_date: r.date, next_action: r.label }))
+    else setForm(f => ({ ...f, next_action: r.label }))
   }
   if (form.result !== 'À relancer') return null
   return (
     <>
       <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
         <span>
-          {busy ? '✨ Lecture du commentaire…'
-            : sug?.date ? <>✨ Date proposée : <b>{formatDate(sug.date)}</b>{sug.why ? ` — ${sug.why}` : ''} <span className="text-violet-500">({sug.source})</span>. Modifiable ci-dessus.</>
-            : sug ? '✨ Aucune date claire dans le commentaire — choisissez-la ci-dessus.'
-            : 'L\'assistant peut proposer une date de relance d\'après votre commentaire.'}
+          {busy ? '✨ Lecture de la fiche et du commentaire…'
+            : sug?.date ? <>✨ Proposé : <b>{sug.label}</b> le <b>{formatDate(sug.date)}</b>{sug.why ? ` — ${sug.why}` : ''} <span className="text-violet-500">({sug.source})</span>. Modifiable ci-dessus.</>
+            : sug ? <>✨ Proposé : <b>{sug.label}</b>, sans date claire — choisissez-la ci-dessus.</>
+            : 'L\'assistant peut proposer la prochaine action et sa date d\'après la fiche et votre commentaire.'}
         </span>
-        <button type="button" onClick={suggest} disabled={busy} className="flex-shrink-0 font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">✨ Suggérer une date de relance</button>
+        <button type="button" onClick={suggest} disabled={busy} className="flex-shrink-0 font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">✨ Suggérer la prochaine action</button>
       </div>
       {warn && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
             <p className="text-2xl mb-2">✍️</p>
-            <p className="font-display font-semibold text-gray-900 mb-1">Veuillez entrer un commentaire</p>
-            <p className="text-sm text-gray-500 mb-5">L'assistant propose une date à partir de ce que vous avez noté sur l'échange (« rappeler jeudi », « pas de besoin avant novembre »…).</p>
+            <p className="font-display font-semibold text-gray-900 mb-1">Veuillez d'abord saisir un commentaire</p>
+            <p className="text-sm text-gray-500 mb-5">L'assistant s'appuie sur ce que vous avez noté de l'échange (« rappeler jeudi », « préfère un mail », « attend des CV »…) et sur l'historique de la fiche.</p>
             <button type="button" onClick={() => setWarn(false)} className="btn-primary w-full">OK</button>
           </div>
         </div>
