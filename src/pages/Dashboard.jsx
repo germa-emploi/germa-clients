@@ -323,7 +323,6 @@ export default function Dashboard() {
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
         const today = todayISO()
-        const isMine = (a) => true
         const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today)
         const plannedAll = stats.upcomingRelances.filter(a => a.next_action_date >= today)
         const relYears = [...new Set(plannedAll.map(a => new Date(a.next_action_date).getFullYear()))].sort()
