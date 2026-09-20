@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.24.1-démo'
+export const APP_DISPLAY_VERSION = '2.25.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.25.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Démo alignée sur la prod 2.19.1 (les évolutions 2.17 à 2.19 y étaient déjà appliquées)',
+    ],
+  },
   {
     version: '2.24.1-démo',
     date: '2026-09-20',
@@ -122,6 +129,34 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.19.1',
+    date: '2026-09-20',
+    changes: [
+      'Listes : colonne « Dernier résultat » (triable) à côté de « Dernière action »',
+    ],
+  },
+  {
+    version: '2.19.0',
+    date: '2026-09-20',
+    changes: [
+      'Drapeau 🔔 « À relancer » retiré (fiche, formulaire, filtre de la liste, bloc du tableau de bord) : doublon avec l\'action « À relancer » datée',
+    ],
+  },
+  {
+    version: '2.18.0',
+    date: '2026-09-20',
+    changes: [
+      'Listes prospects/clients : nouveau filtre « Dernier résultat » (À relancer, RDV pris, Refus, Sans suite, Signé, ou aucune action)',
+    ],
+  },
+  {
+    version: '2.17.0',
+    date: '2026-09-20',
+    changes: [
+      'Formulaire d\'action : la prochaine action et sa date ne sont saisissables que pour « À relancer » ou « RDV pris » ; elles sont effacées si on passe à « Sans suite », « Refus » ou « Signé »',
     ],
   },
   {
