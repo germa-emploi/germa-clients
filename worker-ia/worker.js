@@ -98,6 +98,7 @@ async function sb(env, path, init = {}) {
 }
 // JSON tolérant : parse normal, sinon récupération des éléments {id, action, why} un par un
 function parsePicks(raw) {
+  if (!raw || !raw.trim() || /^\s*(aucun|rien|none)/i.test(raw)) return { picks: [] }
   const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
   if (a >= 0 && b > a) { try { return JSON.parse(raw.slice(a, b + 1)) } catch { /* on tente la récupération */ } }
   const picks = []
@@ -363,7 +364,7 @@ async function reopenSuggestions(env, { date } = {}) {
       const result = parsePicks(raw)
       const byId = Object.fromEntries(cands.map(c => [c.e.id, c]))
       const picks = (result.picks || []).filter(x => byId[x.id]).slice(0, 5)
-      await sb(env, `ia_suggestions?date=eq.${today}&kind=eq.${kind}`, { method: 'DELETE' })
+      if (picks.length) await sb(env, `ia_suggestions?date=eq.${today}&kind=eq.${kind}`, { method: 'DELETE' })
       if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, kind, profile_id: byId[x.id].e.assigned_to, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model: data.model }))) })
       out[kind] = picks.length; out.tokens += (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)
     } catch (err) { out.errors.push(`${label}: ${err.message}`) }
