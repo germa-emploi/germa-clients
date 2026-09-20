@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.19.1-démo'
+export const APP_DISPLAY_VERSION = '2.20.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.20.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Reprend la prod 2.16.0 (relances filtrables par mois/année, voir tout)',
+    ],
+  },
   {
     version: '2.19.1-démo',
     date: '2026-09-20',
@@ -80,6 +87,20 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.16.0',
+    date: '2026-09-20',
+    changes: [
+      'Tableau de bord : les relances planifiées se filtrent par année et par mois, avec un bouton « Voir toutes les relances » au-delà des 15 premières',
+    ],
+  },
+  {
+    version: '2.15.1',
+    date: '2026-09-20',
+    changes: [
+      '« Envoi de candidats » renommé « Envoi de candidature » dans la liste des prochaines actions',
     ],
   },
   {
