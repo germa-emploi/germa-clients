@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.35.0-démo'
+export const APP_DISPLAY_VERSION = '2.36.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.36.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Fiche entreprise réorganisée : nom, secteur et département, activité, commercial, date de création, puis chaleur et conseil de relance intégrés dans la carte principale',
+      'Bouton « Historique de la fiche » : fenêtre listant toutes les modifications enregistrées au journal, avec la date et l\'auteur',
+    ],
+  },
   {
     version: '2.35.0-démo',
     date: '2026-09-20',

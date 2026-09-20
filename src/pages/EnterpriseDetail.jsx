@@ -15,7 +15,7 @@ import {
 } from '../utils/constants'
 
 import { fetchAll } from '../utils/dataHelpers'
-import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
+import { logActivity, ACTIVITY_TYPES as LOG_TYPES, ACTIVITY_LABELS } from '../utils/activityLog'
 import { draftEmail, briefBeforeCall, parseFreeText, aiRequest, buildContext } from '../demo/demo'
 import Flames from '../components/Flames'
 
@@ -28,6 +28,7 @@ export default function EnterpriseDetail() {
   const [heat, setHeat] = useState(null)
   const [presse, setPresse] = useState([])
   const [conseil, setConseil] = useState(null)
+  const [showHistory, setShowHistory] = useState(false)
   const [showBrief, setShowBrief] = useState(false)
   const [actions, setActions] = useState([])
   const [sectors, setSectors] = useState([])
@@ -133,11 +134,7 @@ export default function EnterpriseDetail() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="font-display font-bold text-xl sm:text-2xl text-gray-900">{enterprise.name}</h1>
                 <span className={`badge ${statusColor.bg} ${statusColor.text}`}>{statusColor.label}</span>
-                {heat && enterprise.status === 'prospect' && <Flames score={heat.score} size="text-base" />}
               </div>
-              {heat && enterprise.status === 'prospect' && (
-                <p className="text-sm text-gray-600 mt-1.5"><span className="text-violet-700 font-medium">✨ Chaleur {heat.score}/5</span> — {heat.reason} <span className="text-xs text-gray-400">(calculé le {formatDate(heat.computed_at)})</span></p>
-              )}
 
               {/* Proposition badges — graphiques */}
               {enterprise.status === 'prospect' && hasProposition && (
@@ -181,6 +178,8 @@ export default function EnterpriseDetail() {
                 {enterprise.department && <span className="flex items-center gap-1"><MapPin size={13} />{enterprise.department}{enterprise.city ? ` — ${enterprise.city}` : ''}</span>}
               </div>
 
+              {enterprise.description_activite && <p className="text-sm text-gray-600 mt-2 bg-gray-50 px-3 py-2 rounded-lg">{enterprise.description_activite}</p>}
+
               {/* Assigned to */}
               <div className="flex items-center gap-2 mt-2 text-sm">
                 <UserCog size={13} className="text-gray-400" />
@@ -195,13 +194,29 @@ export default function EnterpriseDetail() {
                 )}
               </div>
 
-              {enterprise.description_activite && <p className="text-sm text-gray-600 mt-2 bg-gray-50 px-3 py-2 rounded-lg">{enterprise.description_activite}</p>}
               {enterprise.communaute_communes && <p className="text-xs text-gray-400 mt-1">Communauté de communes : {enterprise.communaute_communes}</p>}
               {enterprise.notes && <p className="text-sm text-gray-500 mt-1 italic">{enterprise.notes}</p>}
-              <div className="text-xs text-gray-400 mt-2">
-                Créé le {formatDate(enterprise.created_at)} par {creator?.full_name || '—'}
-                {converter && <span> • Converti le {formatDate(enterprise.converted_at)} par {converter.full_name}</span>}
+              <div className="text-xs text-gray-400 mt-2 flex items-center gap-3 flex-wrap">
+                <span>Créé le {formatDate(enterprise.created_at)} par {creator?.full_name || '—'}{converter && <span> • Converti le {formatDate(enterprise.converted_at)} par {converter.full_name}</span>}</span>
+                <button onClick={() => setShowHistory(true)} className="text-xs text-germa-700 hover:underline flex items-center gap-1">🕘 Historique de la fiche</button>
               </div>
+
+              {heat && enterprise.status === 'prospect' && (
+                <div className="mt-4 pt-3 border-t border-gray-100">
+                  <div className="flex items-center gap-2"><Flames score={heat.score} size="text-base" /><span className="text-sm font-medium text-violet-700">Chaleur {heat.score}/5</span><span className="text-xs text-gray-400">calculée le {formatDate(heat.computed_at)}</span></div>
+                  <p className="text-sm text-gray-600 mt-1">{heat.reason}</p>
+                </div>
+              )}
+              {conseil && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-violet-800 mb-1.5">✨ Conseil pour la relance</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-sm font-semibold text-gray-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1">{({ 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' })[conseil.suggested_action] || '•'} {conseil.suggested_action || 'Appeler'}</span>
+                    <span className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-1" title="Urgence">{conseil.level === 0 ? '🧹 À solder' : `${'🏃'.repeat(conseil.level)} ${['', 'Peut attendre', 'À faire', 'Urgent'][conseil.level]}`}</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1.5">{conseil.reason} <span className="text-xs text-gray-400">(calculé le {formatDate(conseil.computed_at)})</span></p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -278,17 +293,6 @@ export default function EnterpriseDetail() {
         )}
       </div>
 
-      {conseil && (
-        <div className="card p-5 border-violet-200 bg-violet-50/40">
-          <h3 className="font-display font-semibold text-violet-800 text-sm mb-2">✨ Conseil de l'assistant pour la relance</h3>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-semibold text-gray-900 bg-white border border-violet-200 rounded-lg px-3 py-1.5">{({ 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' })[conseil.suggested_action] || '•'} {conseil.suggested_action || 'Appeler'}</span>
-            <span className="text-sm bg-white border border-gray-200 rounded-lg px-3 py-1.5" title="Urgence">{conseil.level === 0 ? '🧹 À solder' : `${'🏃'.repeat(conseil.level)} ${['', 'Peut attendre', 'À faire', 'Urgent'][conseil.level]}`}</span>
-          </div>
-          <p className="text-sm text-gray-700 mt-2">{conseil.reason}</p>
-          <p className="text-xs text-gray-400 mt-1">Calculé le {formatDate(conseil.computed_at)} d'après les commentaires, la chaleur, la proposition en cours et l'actualité.</p>
-        </div>
-      )}
 
       {presse.length > 0 && (
         <div className="card p-5 border-blue-100">
@@ -361,6 +365,7 @@ export default function EnterpriseDetail() {
 
       {/* Modals */}
       {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
+      {showHistory && <HistoryModal enterprise={enterprise} profiles={profiles} onClose={() => setShowHistory(false)} />}
       {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} presse={presse} onClose={() => setShowMail(false)} />}
       {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} presse={presse} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
       {editingAction && <EditActionModal action={editingAction} enterpriseName={enterprise.name} onClose={() => setEditingAction(null)} onSaved={() => { setEditingAction(null); loadData() }} />}
@@ -1073,6 +1078,43 @@ function FreeTextBox({ onFill }) {
       <label className="block text-sm font-medium text-violet-800 mb-1">✨ Saisie libre — décrivez l'échange, le formulaire se remplit</label>
       <textarea value={txt} onChange={e => setTxt(e.target.value)} rows={2} placeholder="Ex. : appelé M. Muller, besoin de 2 manœuvres à partir du lundi 28 septembre pour une semaine, il renvoie les horaires par mail, rappeler jeudi si rien reçu" className="w-full bg-transparent text-sm outline-none resize-y placeholder:text-violet-300" />
       <div className="flex items-center justify-between mt-1"><span className="text-xs text-violet-700">{note}</span><button type="button" disabled={busy} onClick={go} className="text-sm font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">✨ Remplir le formulaire</button></div>
+    </div>
+  )
+}
+
+
+// 🕘 Historique de la fiche : journal des modifications (activity_log) concernant cette entreprise
+function HistoryModal({ enterprise, profiles, onClose }) {
+  const [rows, setRows] = useState(null)
+  useEffect(() => {
+    supabase.from('activity_log').select('*').eq('target_id', enterprise.id).order('created_at', { ascending: false }).limit(300)
+      .then(({ data }) => setRows(data || []))
+  }, [enterprise.id])
+  const who = (id) => profiles.find(p => p.id === id)?.full_name || '—'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div><h2 className="font-display font-semibold text-lg">🕘 Historique de la fiche</h2><p className="text-xs text-gray-500">{enterprise.name} · créée le {formatDate(enterprise.created_at)}</p></div>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="p-6 overflow-y-auto flex-1">
+          {rows === null ? <p className="text-sm text-gray-400 text-center py-6">Chargement…</p>
+            : rows.length === 0 ? <p className="text-sm text-gray-400 text-center py-6">Aucune modification enregistrée dans le journal.</p>
+            : <div className="divide-y divide-gray-100">
+              {rows.map(r => (
+                <div key={r.id} className="py-2.5 flex items-start gap-3">
+                  <span className="text-xs text-gray-400 whitespace-nowrap w-28 pt-0.5">{formatDateTime(r.created_at)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-900">{ACTIVITY_LABELS[r.activity_type] || r.activity_type}<span className="text-gray-500"> — {who(r.performed_by)}</span></p>
+                    {r.details && <p className="text-xs text-gray-500 mt-0.5">{r.details}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
+      </div>
     </div>
   )
 }
