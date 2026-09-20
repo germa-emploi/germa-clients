@@ -44,6 +44,8 @@ export function AuthProvider({ children }) {
   async function signOut() {
     setUser(null)
     setProfile(null)
+    // Oublier les filtres et tris mémorisés des listes
+    try { Object.keys(sessionStorage).filter(k => k.startsWith('gc_list_')).forEach(k => sessionStorage.removeItem(k)) } catch { /* ignore */ }
     try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
   }
 
