@@ -45,9 +45,9 @@ Réponds UNIQUEMENT avec un JSON : {"score": 1-5, "reason": "..."}`,
 Règles : si le commentaire contient une date ou une échéance explicite (« rappeler jeudi », « reprise de contact début octobre », « dans 15 jours », « après les vendanges », « quand le chantier démarre fin novembre »), propose la date correspondante (un jour ouvré, le lundi suivant si l'échéance tombe un week-end). Sinon, déduis un délai raisonnable de la situation : message vocal ou mail sans réponse → 5 jours ouvrés ; « pas de besoin pour l'instant » → 2 mois ; besoin annoncé pour une saison → 3 semaines avant cette saison ; refus net → aucune date. Ne propose jamais une date passée.
 Réponds UNIQUEMENT avec un JSON : {"date": "AAAA-MM-JJ" ou "", "label": "un libellé parmi exactement : Relance téléphonique | Relance par mail | Visite | Envoi de candidature | Envoi de proposition | Autre", "why": "justification en 10 mots maximum"}`,
 
-  daily: `Tu es l'assistant commercial de GERMA Emploi. Date du jour : {{TODAY}}. On te donne la liste des prospects suivis par un commercial, avec pour chacun le score de chaleur (1-5) et sa raison, la relance planifiée s'il y en a une, la date du dernier contact et le dernier commentaire. Choisis les 5 prospects qu'il devrait traiter AUJOURD'HUI, dans l'ordre, en privilégiant : relance due aujourd'hui ou en retard, dossier chaud où c'est à nous d'agir (mail promis, candidats à envoyer, proposition à faire), besoin daté qui approche, puis dossiers tièdes sans contact depuis longtemps. Écarte ce qui est manifestement clos.
+  daily: `Tu es l'assistant commercial de GERMA Emploi. Date du jour : {{TODAY}}. On te donne la liste des prospects suivis par un commercial, avec pour chacun le score de chaleur (1-5) et sa raison, la relance planifiée s'il y en a une, la date du dernier contact et le dernier commentaire. Classe les prospects qu'il devrait traiter AUJOURD'HUI, du plus important au moins important, jusqu'à 15 au maximum, en privilégiant : relance due aujourd'hui ou en retard, dossier chaud où c'est à nous d'agir (mail promis, candidats à envoyer, proposition à faire), besoin daté qui approche, puis dossiers tièdes sans contact depuis longtemps. Écarte ce qui est manifestement clos.
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition ; et une raison en 20 mots maximum, factuelle.
-Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, contenant EXACTEMENT 5 éléments (jamais plus), sans aucun texte avant ou après : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
+Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien). Réponds UNIQUEMENT avec un JSON compact sur une ligne, au plus 15 éléments, sans aucun texte avant ou après : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
   veille_mention: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). On te donne un article de presse et le nom d'une entreprise de notre base qui semble y être citée. Dis si l'article parle bien de CETTE entreprise (et pas d'une homonyme), et résume en deux phrases ce que ça change pour un commercial : chantier ou marché gagné, extension, recrutement, difficulté, clause d'insertion…
 Réponds UNIQUEMENT avec un JSON : {"match": true|false, "summary": "deux phrases maximum", "department": "67"|"68"|""}`,
@@ -322,7 +322,7 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
     if (!mine.length) continue
     const ids = mine.map(e => e.id)
     const cands = mine.map(e => ({ e, sc: scoreBy[e.id], la: last[e.id] }))
-      .filter(c => c.la && c.la.result !== 'Refus' && ((c.sc && c.sc.score >= 2) || (c.la.next_action_date && c.la.next_action_date <= today) || c.e.a_relancer))
+      .filter(c => c.la && c.la.result !== 'Refus' && c.sc && c.sc.score >= 3)
       .sort((a, b) => (b.sc?.score || 0) - (a.sc?.score || 0) || (a.la.next_action_date || '9') .localeCompare(b.la.next_action_date || '9'))
       .slice(0, 40)
     if (!cands.length) continue
@@ -330,7 +330,7 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
     const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${c.sc?.score ?? '?'}/5 : ${c.sc?.reason || '—'} | dernier contact ${fmtFR(c.la.performed_at)} (${c.la.result || '?'})${c.la.next_action_date ? ` | relance prévue ${fmtFR(c.la.next_action_date)}${c.la.next_action ? ` (${c.la.next_action})` : ''}` : ''}${c.e.a_relancer ? ' | drapeau à relancer' : ''} | commentaire : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}`).join('\n')
     try {
       const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`)
-      const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 5)
+      const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 15)
       await sb(env, `ia_suggestions?date=eq.${today}&profile_id=eq.${p.id}&kind=eq.jour`, { method: 'DELETE' })
       if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, kind: 'jour', profile_id: p.id, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model }))) })
       out.suggestions += picks.length; out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)

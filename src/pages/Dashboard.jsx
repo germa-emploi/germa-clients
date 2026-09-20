@@ -660,6 +660,7 @@ function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
 
 // ✨ Suggestions du jour — calculées chaque nuit par le Worker (table ia_suggestions)
 function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirection, profileId, navigate }) {
+  const [showAll, setShowAll] = useState(false)
   const mine = isDirection ? suggestions : suggestions.filter(s => s.profile_id === profileId)
   const ents = Object.fromEntries(enterprises.map(e => [e.id, e]))
   const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
@@ -678,7 +679,7 @@ function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirect
         <div key={pid} className="mb-3 last:mb-0">
           {isDirection && <p className="text-xs font-semibold text-gray-500 mb-1.5">{prof[pid] || '—'}</p>}
           <div className="space-y-1.5">
-            {list.sort((a, b) => a.rank - b.rank).map(s => {
+            {list.sort((a, b) => a.rank - b.rank).slice(0, showAll ? undefined : 5).map(s => {
               const e = ents[s.enterprise_id]
               if (!e) return null
               return (
@@ -695,6 +696,9 @@ function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirect
           </div>
         </div>
       ))}
+      {mine.length > 0 && Object.values(groups).some(l => l.length > 5) && (
+        <button onClick={() => setShowAll(v => !v)} className="mt-3 w-full text-sm font-medium text-violet-700 hover:bg-violet-50 rounded-xl py-2 border border-violet-200">{showAll ? 'Réduire' : `Voir plus de suggestions (${mine.length})`}</button>
+      )}
     </div>
   )
 }

@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.33.0-démo'
+export const APP_DISPLAY_VERSION = '2.34.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.34.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Suggestions du jour : jusqu\'à 15 par commercial (5 affichées, bouton « Voir plus de suggestions »), uniquement parmi les prospects à 3 flammes ou plus',
+    ],
+  },
   {
     version: '2.33.0-démo',
     date: '2026-09-20',
