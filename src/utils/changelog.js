@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.37.0-démo'
+export const APP_DISPLAY_VERSION = '2.37.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.37.1-démo',
+    date: '2026-09-20',
+    changes: [
+      'Tableau de bord : badge vert « Client » sur les relances qui concernent un client, pour les distinguer de la prospection',
+    ],
+  },
   {
     version: '2.37.0-démo',
     date: '2026-09-20',
