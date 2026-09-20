@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.20.0'
+export const APP_DISPLAY_VERSION = '2.21.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.21.0',
+    date: '2026-09-20',
+    changes: [
+      'Menu (direction) : encart « Actions du jour » avec un bouton par commercial actif ; la page liste ses relances du jour et en retard avec les coordonnées, pour assurer le suivi en cas d\'absence',
+    ],
+  },
   {
     version: '2.20.0',
     date: '2026-09-20',

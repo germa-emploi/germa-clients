@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
@@ -6,6 +6,8 @@ import {
   History
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
+import { supabase } from '../lib/supabase'
+import { isHiddenAccount } from '../utils/constants'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
@@ -50,6 +52,25 @@ export default function Layout() {
   }
 
   const allNavItems = isDirection ? [...navItems, ...adminItems] : navItems
+  // Encart « Actions du jour » (direction) : un bouton par commercial actif
+  const [commercials, setCommercials] = useState([])
+  useEffect(() => {
+    if (!isDirection) return
+    supabase.from('profiles').select('id, full_name, email, role, is_active').eq('is_active', true).eq('role', 'commercial').order('full_name')
+      .then(({ data }) => setCommercials((data || []).filter(p => !isHiddenAccount(p))))
+  }, [isDirection])
+  const DailyBox = ({ onClick }) => isDirection && commercials.length > 0 ? (
+    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800 mb-2">Actions du jour</p>
+      <div className="flex flex-col gap-1">
+        {commercials.map(c => (
+          <NavLink key={c.id} to={`/actions-du-jour/${c.id}`} onClick={onClick} className={({ isActive }) => `text-sm px-2.5 py-1.5 rounded-lg transition-colors ${isActive ? 'bg-amber-600 text-white' : 'text-amber-900 hover:bg-amber-100'}`}>
+            {c.full_name}
+          </NavLink>
+        ))}
+      </div>
+    </div>
+  ) : null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -71,6 +92,7 @@ export default function Layout() {
             {allNavItems.map(item => (
               <NavItem key={item.to} {...item} />
             ))}
+            <DailyBox />
           </nav>
 
           {/* User */}
@@ -123,6 +145,7 @@ export default function Layout() {
             {allNavItems.map(item => (
               <NavItem key={item.to} {...item} onClick={() => setMobileOpen(false)} />
             ))}
+            <DailyBox onClick={() => setMobileOpen(false)} />
             <hr className="my-2 border-gray-100" />
             <div className="flex items-center gap-3 px-3 py-2">
               <div className="w-7 h-7 rounded-full bg-germa-100 flex items-center justify-center">
