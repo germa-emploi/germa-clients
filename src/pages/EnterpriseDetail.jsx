@@ -8,7 +8,7 @@ import {
   FileText, UserPlus, Send, PenTool, UserCog, Merge, Search
 } from 'lucide-react'
 import {
-  ACTION_TYPES, CHANNELS, RESULTS,
+  ACTION_TYPES, CHANNELS, RESULTS, NEXT_ACTIONS,
   STATUS_COLORS, RESULT_COLORS,
   formatDate, formatDateTime, DEPARTMENTS,
   CLOSING_RESULTS, todayISO, toLocalDateISO, performedAtFromDate
@@ -356,7 +356,7 @@ export default function EnterpriseDetail() {
 // ===================== ADD ACTION MODAL =====================
 function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
   const { profile } = useAuth()
-  const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: '', next_action_date: '', comments: '', contact: '' })
+  const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: 'Relance téléphonique', next_action_date: '', comments: '', contact: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'action_type') setForm(o => ({ ...o, [f]: v, channel: v })) }
@@ -387,7 +387,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
           </div>
           {form.need_identified && <div><label className="block text-sm font-medium text-gray-700 mb-1">Type de besoin</label><input value={form.need_type} onChange={e => update('need_type', e.target.value)} className="input-field" placeholder="Ex: Intérim renfort" /></div>}
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><input value={form.next_action} onChange={e => update('next_action', e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
@@ -409,7 +409,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
     performed_date: action.performed_at ? toLocalDateISO(action.performed_at) : todayISO(),
     action_type: action.action_type || 'Physique', result: action.result || 'À relancer',
     is_new_prospect: action.is_new_prospect || false, need_identified: action.need_identified || false,
-    need_type: action.need_type || '', next_action: action.next_action || '',
+    need_type: action.need_type || '', next_action: NEXT_ACTIONS.includes(action.next_action) ? action.next_action : (action.next_action ? 'Autre' : ''),
     next_action_date: action.next_action_date ? action.next_action_date.split('T')[0] : '',
     comments: action.comments || '', contact: action.contact || '',
   })
@@ -451,7 +451,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
           </div>
           {form.need_identified && <div><label className="block text-sm font-medium text-gray-700 mb-1">Type de besoin</label><input value={form.need_type} onChange={e => update('need_type', e.target.value)} className="input-field" /></div>}
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><input value={form.next_action} onChange={e => update('next_action', e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
@@ -934,7 +934,7 @@ function RelanceSuggestion({ form, setForm }) {
     if (res?.result && ('date' in res.result)) r = { date: res.result.date || '', label: res.result.label || 'Relance', why: res.result.why || '', source: res.model }
     else { const p = parseFreeText(form.comments); r = { date: p.next_action_date || '', label: p.next_action || 'Relance', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
     setSug(r); setBusy(false)
-    if (r.date) setForm(f => ({ ...f, next_action_date: r.date, next_action: f.next_action || r.label }))
+    if (r.date) setForm(f => ({ ...f, next_action_date: r.date, next_action: NEXT_ACTIONS.includes(r.label) ? r.label : (f.next_action || 'Relance téléphonique') }))
   }
   if (form.result !== 'À relancer') return null
   return (

@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.17.0-démo'
+export const APP_DISPLAY_VERSION = '2.18.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.18.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Reprend la prod 2.15.0 (« Prochaine action » en liste) ; la date de relance suggérée choisit désormais son libellé dans cette liste',
+    ],
+  },
   {
     version: '2.17.0-démo',
     date: '2026-09-20',
@@ -59,6 +66,14 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.15.0',
+    date: '2026-09-20',
+    changes: [
+      '« Prochaine action » devient une liste (Relance téléphonique, Relance par mail, Visite, Envoi de candidats, Envoi de proposition, Autre), pré-remplie sur « Relance téléphonique »',
+      'Anciennes saisies harmonisées dans la base (« relance tél », « Téléphonique »… → « Relance téléphonique », etc.)',
     ],
   },
   {
