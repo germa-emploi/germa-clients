@@ -1,6 +1,16 @@
-export const APP_DISPLAY_VERSION = '2.13.0'
+export const APP_DISPLAY_VERSION = '2.14.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.14.0',
+    date: '2026-09-20',
+    changes: [
+      'Nouvelle page « Historique » dans le menu : entreprises créées, conversions, actions et RDV pris, sur toute la période',
+      'Filtres combinables : année, mois, commercial (direction), secteur, département, type d\'échange, résultat, recherche libre ; totaux par mois ; export Excel du résultat filtré',
+      'Un commercial ne voit que son activité et ses entreprises ; la direction voit tout',
+      'Les liens « → Historique » des cartes du tableau de bord ouvrent la page sur la bonne vue ; les cartes gardent leurs fenêtres rapides',
+    ],
+  },
   {
     version: '2.13.0',
     date: '2026-09-20',

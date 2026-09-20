@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
-  LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck
+  LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
+  History
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 
@@ -10,6 +11,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
+  { to: '/historique', icon: History, label: 'Historique' },
 ]
 
 const adminItems = [
