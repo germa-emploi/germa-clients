@@ -64,7 +64,7 @@ Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien)
 2 = à faire : intérêt réel mais rien de brûlant, ou dossier tiède à ne pas laisser refroidir ;
 1 = peut attendre : porte entrouverte sans besoin, saison lointaine, simple contact raté ;
 0 = à solder : la relance n'a plus de sens (besoin passé, pas de besoin, refus implicite, contact obsolète) — le commercial devrait la clôturer.
-Pour chacune, une raison en 15 mots maximum. Dans les textes, jamais de guillemets droits ".
+Pour chacune, une raison en 12 mots maximum. Dans les textes, jamais de guillemets droits ". Traite TOUTES les lignes reçues, sans commentaire ni explication.
 Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "why": "..."}]}`,
 
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
@@ -127,11 +127,11 @@ async function sbAll(env, path) {
   }
   return out
 }
-async function askClaude(env, task, context) {
+async function askClaude(env, task, context, maxTokens = 4000) {
   const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 4000, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
+    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: maxTokens, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
   })
   const body = await r.text()
   let data = {}
@@ -402,17 +402,17 @@ async function urgenceRelances(env, { force = false } = {}) {
   const todo = late.filter(c => force || !prevBy[c.e.id] || prevBy[c.e.id] < week || touched.has(c.e.id) || (c.la.performed_at > prevBy[c.e.id]))
   const out = { total_late: late.length, analysed: 0, errors: [], tokens: 0 }
   const days = (d) => Math.round((new Date(today) - new Date(d)) / 86400000)
-  for (let i = 0; i < todo.length; i += 50) {
-    const lot = todo.slice(i, i + 50)
+  for (let i = 0; i < todo.length; i += 20) {
+    const lot = todo.slice(i, i + 20)
     const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${sc.reason}` : ''} | retard ${days(c.la.next_action_date)} j (prévue le ${fmtFR(c.la.next_action_date)}, ${c.la.next_action || 'relance'})${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
     try {
-      const { result, model, usage } = await askClaude(env, 'urgence', ctx)
+      const { result, model, usage } = await askClaude(env, 'urgence', ctx, 6000)
       out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
       const byId = new Set(lot.map(c => c.e.id))
       const rows = (result.items || []).filter(x => byId.has(x.id)).map(x => ({ enterprise_id: x.id, level: Math.max(0, Math.min(3, Math.round(Number(x.level)))), reason: String(x.why || '').slice(0, 200), model, computed_at: new Date().toISOString() }))
       if (rows.length) await sb(env, 'ia_urgences', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) })
       out.analysed += rows.length
-    } catch (err) { out.errors.push(`lot ${i / 50 + 1}: ${err.message}`) }
+    } catch (err) { out.errors.push(`lot ${i / 20 + 1}: ${err.message}`) }
   }
   // purge : entreprises qui ne sont plus en retard
   const lateIds = new Set(late.map(c => c.e.id))
