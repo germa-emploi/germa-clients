@@ -201,8 +201,10 @@ export default function Enterprises({ filterStatus }) {
   const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterResult, filterDateYear, filterAncienClient].filter(Boolean).length
 
   function clearFilters() {
-    setFilterSector(''); setFilterDept(''); setFilterCommercial(''); setFilterProposition(''); setFilterDateYear(''); setFilterDateMonth(''); setFilterAncienClient('')
+    setSearch(''); setFilterSector(''); setFilterDept(''); setFilterCommercial(''); setFilterProposition(''); setFilterResult(''); setFilterDateYear(''); setFilterDateMonth(''); setFilterAncienClient('')
+    setSortColumn('name'); setSortDir('asc')
   }
+  const isDirty = activeFilters > 0 || search !== '' || sortColumn !== 'name' || sortDir !== 'asc'
 
   if (loading) {
     return (
@@ -258,6 +260,11 @@ export default function Enterprises({ filterStatus }) {
             </span>
           )}
         </button>
+        {isDirty && (
+          <button onClick={clearFilters} className="btn-secondary flex items-center gap-2 !text-red-600 !border-red-200 hover:!bg-red-50" title="Effacer la recherche, les filtres et le tri">
+            <X size={16} /><span className="hidden sm:inline">Réinitialiser</span>
+          </button>
+        )}
       </div>
 
       {/* Filter bar */}

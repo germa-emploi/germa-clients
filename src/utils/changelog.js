@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.21.1'
+export const APP_DISPLAY_VERSION = '2.22.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.22.0',
+    date: '2026-09-20',
+    changes: [
+      'Listes : bouton « Réinitialiser » à côté de « Filtres », visible dès qu\'une recherche, un filtre ou un tri est actif — remet tout à zéro d\'un clic',
+    ],
+  },
   {
     version: '2.21.1',
     date: '2026-09-20',
