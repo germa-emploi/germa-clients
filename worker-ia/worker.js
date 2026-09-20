@@ -85,6 +85,18 @@ async function sb(env, path, init = {}) {
   if (!r.ok) throw new Error(`Supabase ${path}: ${r.status} ${txt}`)
   return txt ? JSON.parse(txt) : null
 }
+// Lecture complète d'une table par pages de 1000 (Supabase limite chaque réponse à 1000 lignes)
+async function sbAll(env, path) {
+  const out = []
+  for (let from = 0; ; from += 1000) {
+    const r = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, { headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`, Range: `${from}-${from + 999}`, 'Range-Unit': 'items' } })
+    if (!r.ok && r.status !== 416) throw new Error(`Supabase ${path}: ${r.status} ${await r.text()}`)
+    const page = r.status === 416 ? [] : await r.json()
+    out.push(...page)
+    if (page.length < 1000) break
+  }
+  return out
+}
 async function askClaude(env, task, context) {
   const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -114,7 +126,7 @@ async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {})
     sb(env, `enterprises?select=*&id=${inFilter}&status=eq.prospect`, { headers: { Prefer: '' } }),
     sb(env, `actions?select=*&enterprise_id=${inFilter}`, { headers: { Prefer: '' } }),
     sb(env, `interlocuteurs?select=*&enterprise_id=${inFilter}`, { headers: { Prefer: '' } }),
-    sb(env, `profiles?select=id,full_name`, { headers: { Prefer: '' } }),
+    sbAll(env, `profiles?select=id,full_name`),
   ])
   const out = { scanned: ids.size, scored: 0, skipped: ids.size - ents.length, errors: [], tokens: 0 }
   for (const e of ents) {
@@ -133,23 +145,21 @@ async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {})
 const HIDDEN_EMAILS = ['ymonteiro@hotmail.com', 'solo6782@gmail.com']
 async function dailySuggestions(env, { date, force = [] } = {}) {
   const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
-  const H = { headers: { Prefer: '' } }
-  const [profiles, ents, scores] = await Promise.all([
-    sb(env, `profiles?select=id,full_name,email,role,is_active&is_active=eq.true`, H),
-    sb(env, `enterprises?select=id,name,city,assigned_to,description_activite,a_relancer&status=eq.prospect`, H),
-    sb(env, `ia_scores?select=enterprise_id,score,reason`, H),
+  const [profiles, ents, scores, acts] = await Promise.all([
+    sbAll(env, `profiles?select=id,full_name,email,role,is_active&is_active=eq.true`),
+    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,a_relancer&status=eq.prospect`),
+    sbAll(env, `ia_scores?select=enterprise_id,score,reason`),
+    sbAll(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&order=performed_at.desc`),
   ])
   const scoreBy = Object.fromEntries(scores.map(s => [s.enterprise_id, s]))
+  const last = {}
+  acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
   const out = { date: today, commercials: 0, suggestions: 0, errors: [], tokens: 0 }
   const targets = profiles.filter(p => !HIDDEN_EMAILS.includes((p.email || '').toLowerCase()) && (!force.length || force.includes(p.id)))
   for (const p of targets) {
     const mine = ents.filter(e => e.assigned_to === p.id)
     if (!mine.length) continue
     const ids = mine.map(e => e.id)
-    // dernière action par entreprise (les 400 plus récentes suffisent largement)
-    const acts = await sb(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&enterprise_id=in.(${ids.join(',')})&order=performed_at.desc&limit=2000`, H)
-    const last = {}
-    acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
     const cands = mine.map(e => ({ e, sc: scoreBy[e.id], la: last[e.id] }))
       .filter(c => c.la && c.la.result !== 'Refus' && ((c.sc && c.sc.score >= 2) || (c.la.next_action_date && c.la.next_action_date <= today) || c.e.a_relancer))
       .sort((a, b) => (b.sc?.score || 0) - (a.sc?.score || 0) || (a.la.next_action_date || '9') .localeCompare(b.la.next_action_date || '9'))
