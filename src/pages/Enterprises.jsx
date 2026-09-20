@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 import {
   Search, Plus, Filter, Building2, X, MapPin, ArrowUpDown, ArrowUp, ArrowDown, ArrowLeft
 } from 'lucide-react'
-import { DEPARTMENTS, STATUS_COLORS, RESULTS, formatDate, isHiddenAccount } from '../utils/constants'
+import { DEPARTMENTS, STATUS_COLORS, RESULTS, RESULT_COLORS, formatDate, isHiddenAccount } from '../utils/constants'
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES } from '../utils/activityLog'
 
@@ -154,6 +154,9 @@ export default function Enterprises({ filterStatus }) {
         case 'lastAction':
           va = lastActionDate[a.id] || ''; vb = lastActionDate[b.id] || ''
           break
+        case 'lastResult':
+          va = lastActionResult[a.id] || ''; vb = lastActionResult[b.id] || ''
+          break
         case 'commercial':
           va = profiles.find(p => p.id === a.assigned_to)?.full_name?.toLowerCase() || ''
           vb = profiles.find(p => p.id === b.assigned_to)?.full_name?.toLowerCase() || ''
@@ -179,7 +182,7 @@ export default function Enterprises({ filterStatus }) {
       return 0
     })
     return arr
-  }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, profiles])
+  }, [filtered, sortColumn, sortDir, sectors, actionCounts, lastActionDate, lastActionResult, profiles])
 
   function toggleSort(col) {
     if (sortColumn === col) {
@@ -350,6 +353,7 @@ export default function Enterprises({ filterStatus }) {
                   <Th label="Prop." col="proposition" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden sm:table-cell" />
                   <Th label="Actions" col="actions" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden md:table-cell" />
                   <Th label="Dernière action" col="lastAction" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
+                  <Th label="Dernier résultat" col="lastResult" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   <Th label="Commercial" col="commercial" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden md:table-cell" />
                   <Th label={isClients ? 'Conversion' : 'Création'} col="dateCol" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />
                   {isProspects && <Th label="Ancien client" col="ancienClient" sortColumn={sortColumn} sortDir={sortDir} onSort={toggleSort} className="hidden lg:table-cell" />}
@@ -381,6 +385,7 @@ export default function Enterprises({ filterStatus }) {
                       </td>
                       <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{actionCounts[ent.id] || 0}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{formatDate(lastActionDate[ent.id])}</td>
+                      <td className="px-4 py-3 hidden lg:table-cell">{lastActionResult[ent.id] ? <span className={`badge ${RESULT_COLORS[lastActionResult[ent.id]] || 'bg-gray-100 text-gray-600'}`}>{lastActionResult[ent.id]}</span> : <span className="text-gray-300 text-xs">—</span>}</td>
                       <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{assignedTo?.full_name?.split(' ')[0] || '—'}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs hidden lg:table-cell">{formatDate(isClients ? ent.converted_at : ent.created_at)}</td>
                       {isProspects && (

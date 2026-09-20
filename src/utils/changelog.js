@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.19.0'
+export const APP_DISPLAY_VERSION = '2.19.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.19.1',
+    date: '2026-09-20',
+    changes: [
+      'Listes : colonne « Dernier résultat » (triable) à côté de « Dernière action »',
+    ],
+  },
   {
     version: '2.19.0',
     date: '2026-09-20',
