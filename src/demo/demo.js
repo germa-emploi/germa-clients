@@ -22,7 +22,7 @@ export async function aiRequest(task, context) {
 
 const fmtFull = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''
 // Contexte textuel envoyé à l'IA — le même que celui montré lors du POC
-export function buildContext({ enterprise, actions = [], interlocuteurs = [], profile, sector, kind }) {
+export function buildContext({ enterprise, actions = [], interlocuteurs = [], profile, sector, kind, presse = [] }) {
   const sorted = [...actions].sort((a, b) => new Date(a.performed_at) - new Date(b.performed_at))
   const lines = [
     `Entreprise : ${enterprise.name} — ${enterprise.city || '?'} (${enterprise.department || '?'})${sector ? ` — secteur ${sector}` : ''}${enterprise.description_activite ? ` — ${enterprise.description_activite}` : ''}`,
@@ -37,6 +37,10 @@ export function buildContext({ enterprise, actions = [], interlocuteurs = [], pr
   sorted.forEach(a => lines.push(`${fmtFull(a.performed_at)} ${a.action_type.toLowerCase()} — ${a.result || ''}${a.need_identified ? ` — besoin identifié${a.need_type ? ` : ${a.need_type}` : ''}` : ''}${a.next_action ? ` — prochaine étape : ${a.next_action}${a.next_action_date ? ` le ${fmtFull(a.next_action_date)}` : ''}` : ''}${a.comments ? ` — ${a.comments.replace(/\n+/g, ' / ')}` : ''}`))
   const last = sorted[sorted.length - 1]
   if (last?.next_action_date) lines.push(`Relance prévue : ${fmtFull(last.next_action_date)}`)
+  if (presse.length) {
+    lines.push('Dans la presse (veille automatique, à utiliser seulement si pertinent) :')
+    presse.slice(0, 3).forEach(p => lines.push(`${fmtFull(p.published_at || p.created_at)} ${p.source} — ${p.title}${p.summary ? ` — ${p.summary}` : ''}`))
+  }
   if (kind) lines.push(`Type de mail demandé : ${kind}`)
   return lines.join('\n')
 }

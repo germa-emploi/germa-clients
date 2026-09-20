@@ -16,13 +16,14 @@ const SYSTEM = {
 Règles :
 - Si un historique existe : rappelle le dernier échange avec sa date, pose UNE question précise (date de démarrage, profil, durée) plutôt qu'un « avez-vous des besoins ? » générique, et appuie-toi sur ce qui a déjà fonctionné (mission réalisée, proposition envoyée). Ne reviens pas sur les reports ou les échecs passés.
 - Si aucun historique : présente GERMA en deux phrases à partir du texte de présentation fourni, relie l'offre aux profils recherchés par l'entreprise si connus, et propose un échange de quinze minutes.
+- Si le contexte contient une rubrique « Dans la presse » et qu'elle est pertinente (marché gagné, chantier, extension, recrutement), ouvre le mail par une phrase de félicitations ou de référence à cette actualité, sobre et sans flatterie, et relie-la au besoin de personnel. Si elle n'est pas pertinente (sujet sans lien, information négative), ignore-la.
 - N'invente AUCUNE information absente du contexte (pas de chiffres, pas de noms, pas de dates). Si le numéro de téléphone du commercial n'est pas fourni, n'en mets pas.
 - Vouvoiement. Signature : prénom et nom du commercial, puis « GERMA Emploi ».
 Réponds UNIQUEMENT avec un JSON : {"subject": "...", "body": "..."} — sans commentaire, sans balise de code.
 
 Présentation de GERMA à utiliser : ${PRESENTATION}`,
 
-  brief: `Tu es l'assistant commercial de GERMA Emploi. À partir de la fiche d'une entreprise et de son historique d'actions, prépare un brief de lecture rapide (30 secondes) pour le commercial qui va l'appeler. Français, phrases courtes, aucune information inventée.
+  brief: `Tu es l'assistant commercial de GERMA Emploi. À partir de la fiche d'une entreprise et de son historique d'actions, prépare un brief de lecture rapide (30 secondes) pour le commercial qui va l'appeler. Français, phrases courtes, aucune information inventée. Si le contexte contient une rubrique « Dans la presse », intègre l'actualité pertinente dans « savoir » et, si elle ouvre une accroche (marché gagné, chantier, recrutement), dans « angle ».
 Réponds UNIQUEMENT avec un JSON :
 {"qui": "l'interlocuteur et ce qu'on sait de lui", "ou": "où en est la relation en 2 phrases", "savoir": ["3 faits utiles maximum, tirés des commentaires"], "angle": "l'angle conseillé pour cet appel en 1 phrase", "demander": ["2 à 3 questions à poser"]}`,
 

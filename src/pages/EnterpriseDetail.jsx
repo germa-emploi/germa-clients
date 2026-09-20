@@ -347,8 +347,8 @@ export default function EnterpriseDetail() {
 
       {/* Modals */}
       {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
-      {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} onClose={() => setShowMail(false)} />}
-      {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
+      {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} presse={presse} onClose={() => setShowMail(false)} />}
+      {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} presse={presse} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
       {editingAction && <EditActionModal action={editingAction} enterpriseName={enterprise.name} onClose={() => setEditingAction(null)} onSaved={() => { setEditingAction(null); loadData() }} />}
       {showEditEnterprise && <EditEnterpriseModal enterprise={enterprise} sectors={sectors} profiles={profiles} onClose={() => setShowEditEnterprise(false)} onSaved={() => { setShowEditEnterprise(false); loadData() }} />}
       {showAddInterlocuteur && <AddInterlocuteurModal enterpriseId={id} onClose={() => setShowAddInterlocuteur(false)} onCreated={() => { setShowAddInterlocuteur(false); loadData() }} />}
@@ -986,13 +986,13 @@ function AiFrame({ title, onClose, children, footer }) {
 function Thinking({ label }) {
   return <div className="flex items-center justify-center gap-2 py-10 text-violet-700 text-sm"><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse [animation-delay:150ms]" /><span className="w-2 h-2 rounded-full bg-violet-500 animate-pulse [animation-delay:300ms]" /> {label}</div>
 }
-function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, onClose }) {
+function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, presse = [], onClose }) {
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState(null)
   const [source, setSource] = useState('')
   const generate = async () => {
     setReady(false)
-    const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, kind: actions.length ? 'relance' : 'premier contact' })
+    const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, presse, kind: actions.length ? 'relance' : 'premier contact' })
     const res = await aiRequest('mail', ctx)
     if (res?.result?.subject && res?.result?.body) { setDraft(res.result); setSource(`Rédigé par ${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus, ${res.usage?.output_tokens ?? '?'} écrits`) }
     else { await new Promise(r => setTimeout(r, 900)); setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setSource('Gabarit local (IA indisponible)') }
@@ -1014,12 +1014,12 @@ function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, onC
     </AiFrame>
   )
 }
-function AiBriefModal({ enterprise, actions, interlocuteurs, profiles, onClose, onSaisir }) {
+function AiBriefModal({ enterprise, actions, interlocuteurs, profiles, presse = [], onClose, onSaisir }) {
   const [ready, setReady] = useState(false)
   const [b, setB] = useState(null)
   const [source, setSource] = useState('')
   useEffect(() => { (async () => {
-    const res = await aiRequest('brief', buildContext({ enterprise, actions, interlocuteurs, profile: profiles.find(p => p.id === enterprise.assigned_to) }))
+    const res = await aiRequest('brief', buildContext({ enterprise, actions, interlocuteurs, profile: profiles.find(p => p.id === enterprise.assigned_to), presse }))
     if (res?.result?.qui) { setB({ ...res.result, savoir: [].concat(res.result.savoir || []), demander: [].concat(res.result.demander || []) }); setSource(`${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus`) }
     else { await new Promise(r => setTimeout(r, 800)); setB(briefBeforeCall({ enterprise, actions, interlocuteurs, profiles })); setSource('Gabarit local (IA indisponible)') }
     setReady(true)
