@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.26.0-démo'
+export const APP_DISPLAY_VERSION = '2.27.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.27.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Menu (direction) : encart « Actions du jour » avec un bouton par commercial actif ; la page liste ses relances du jour et en retard avec les coordonnées, pour assurer le suivi en cas d\'absence — en démo, avec ses suggestions du jour',
+    ],
+  },
   {
     version: '2.26.0-démo',
     date: '2026-09-20',
