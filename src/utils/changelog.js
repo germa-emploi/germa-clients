@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.16.0-démo'
+export const APP_DISPLAY_VERSION = '2.17.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.17.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Bouton « Suggérer une date de relance » toujours visible dans les formulaires d\'action « À relancer » ; message si aucun commentaire n\'est saisi',
+    ],
+  },
   {
     version: '2.16.0-démo',
     date: '2026-09-20',

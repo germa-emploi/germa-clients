@@ -923,28 +923,42 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
 
 // ✨ Suggestion de date de relance à partir du commentaire (IA, repli sur l'analyse locale)
 function RelanceSuggestion({ form, setForm }) {
-  const [state, setState] = useState(null) // null | 'busy' | { date, label, why, source }
-  const canSuggest = form.result === 'À relancer' && (form.comments || '').trim().length > 5
+  const [busy, setBusy] = useState(false)
+  const [sug, setSug] = useState(null)   // { date, label, why, source }
+  const [warn, setWarn] = useState(false) // fenêtre "veuillez saisir un commentaire"
   const suggest = async () => {
-    setState('busy')
+    if ((form.comments || '').trim().length < 6) { setWarn(true); return }
+    setBusy(true); setSug(null)
     const res = await aiRequest('relance_date', `Date du jour : ${todayISO()}\nCommentaire : ${form.comments}`)
-    let sug
-    if (res?.result?.date) sug = { date: res.result.date, label: res.result.label || 'Relance', why: res.result.why || '', source: res.model }
-    else { const p = parseFreeText(form.comments); sug = { date: p.next_action_date || '', label: p.next_action || 'Relance', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
-    setState(sug)
-    if (sug.date) setForm(f => ({ ...f, next_action_date: sug.date, next_action: f.next_action || sug.label }))
+    let r
+    if (res?.result && ('date' in res.result)) r = { date: res.result.date || '', label: res.result.label || 'Relance', why: res.result.why || '', source: res.model }
+    else { const p = parseFreeText(form.comments); r = { date: p.next_action_date || '', label: p.next_action || 'Relance', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
+    setSug(r); setBusy(false)
+    if (r.date) setForm(f => ({ ...f, next_action_date: r.date, next_action: f.next_action || r.label }))
   }
-  if (!canSuggest) return null
+  if (form.result !== 'À relancer') return null
   return (
-    <div className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800 flex items-center justify-between gap-3">
-      <span>
-        {state === 'busy' ? '✨ Lecture du commentaire…'
-          : state?.date ? <>✨ Date proposée : <b>{formatDate(state.date)}</b>{state.why ? ` — ${state.why}` : ''} <span className="text-violet-500">({state.source})</span>. Modifiable ci-dessus.</>
-          : state ? <>✨ Aucune date claire dans le commentaire — choisissez-la ci-dessus.</>
-          : '✨ L\'assistant peut proposer une date de relance d\'après le commentaire.'}
-      </span>
-      <button type="button" onClick={suggest} disabled={state === 'busy'} className="flex-shrink-0 font-medium px-2.5 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">{state && state !== 'busy' ? 'Re-proposer' : 'Proposer'}</button>
-    </div>
+    <>
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-800">
+        <span>
+          {busy ? '✨ Lecture du commentaire…'
+            : sug?.date ? <>✨ Date proposée : <b>{formatDate(sug.date)}</b>{sug.why ? ` — ${sug.why}` : ''} <span className="text-violet-500">({sug.source})</span>. Modifiable ci-dessus.</>
+            : sug ? '✨ Aucune date claire dans le commentaire — choisissez-la ci-dessus.'
+            : 'L\'assistant peut proposer une date de relance d\'après votre commentaire.'}
+        </span>
+        <button type="button" onClick={suggest} disabled={busy} className="flex-shrink-0 font-medium px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50">✨ Suggérer une date de relance</button>
+      </div>
+      {warn && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 text-center">
+            <p className="text-2xl mb-2">✍️</p>
+            <p className="font-display font-semibold text-gray-900 mb-1">Veuillez entrer un commentaire</p>
+            <p className="text-sm text-gray-500 mb-5">L'assistant propose une date à partir de ce que vous avez noté sur l'échange (« rappeler jeudi », « pas de besoin avant novembre »…).</p>
+            <button type="button" onClick={() => setWarn(false)} className="btn-primary w-full">OK</button>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 
