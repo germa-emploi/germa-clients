@@ -61,7 +61,8 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-germa-800 via-germa-700 to-germa-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-violet-900 via-violet-800 to-violet-600 flex items-center justify-center p-4">
+      <div className="fixed top-0 left-0 right-0 z-20 bg-violet-950/80 text-white text-xs sm:text-sm font-semibold text-center py-2 px-3 tracking-wide">🧪 ENVIRONNEMENT DE DÉMO — lecture seule · la prod est sur germa-clients.pages.dev</div>
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute inset-0" style={{
@@ -77,8 +78,8 @@ export default function Login() {
             <img src="/logo_etti.jpg" alt="GERMA ETTI" className="h-24 sm:h-32 rounded-2xl shadow-xl bg-white p-2" />
             <img src="/logo_ai.jpg" alt="GERMA AI" className="h-24 sm:h-32 rounded-2xl shadow-xl bg-white p-2" />
           </div>
-          <h1 className="font-display font-bold text-3xl text-white">GermaClients</h1>
-          <p className="text-germa-200 text-sm mt-1">Suivi Activité Commerciale Germa Etti - Ai</p>
+          <h1 className="font-display font-bold text-3xl text-white">GermaClients <span className="inline-block align-middle text-sm font-semibold bg-white text-violet-800 rounded-lg px-2 py-0.5 ml-1">DÉMO</span></h1>
+          <p className="text-violet-200 text-sm mt-1">Suivi Activité Commerciale Germa Etti - Ai — version de démonstration</p>
         </div>
 
         {/* Login card */}
