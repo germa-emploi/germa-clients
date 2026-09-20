@@ -1,6 +1,15 @@
-export const APP_DISPLAY_VERSION = '2.12.0-démo'
+export const APP_DISPLAY_VERSION = '2.13.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.13.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Champ « Suivi / Contact » retiré des formulaires d\'action (les anciennes valeurs restent visibles)',
+      '🔥 Flammes affichées dans les blocs « Relances planifiées » et « Entreprises à relancer » du tableau de bord (prospects notés)',
+      'Reprend les évolutions de la prod 2.11.0 (copier les e-mails) et 2.12.0 (relances par commercial assigné, réattribution à la désactivation)',
+    ],
+  },
   {
     version: '2.12.0-démo',
     date: '2026-09-18',

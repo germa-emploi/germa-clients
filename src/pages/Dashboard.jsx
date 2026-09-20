@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import Flames from '../components/Flames'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, AreaChart, Area,
@@ -27,6 +28,7 @@ export default function Dashboard() {
   const [actions, setActions] = useState([])
   const [profiles, setProfiles] = useState([])
   const [sectors, setSectors] = useState([])
+  const [scores, setScores] = useState({})
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
@@ -40,13 +42,15 @@ export default function Dashboard() {
 
   async function loadData() {
     setLoading(true)
-    const [entData, actData, profData, secData] = await Promise.all([
+    const [entData, actData, profData, secData, scoreData] = await Promise.all([
       fetchAll('enterprises'),
       fetchAll('actions', { order: { column: 'performed_at', ascending: false } }),
       fetchAll('profiles'),
       fetchAll('sectors'),
+      fetchAll('ia_scores'),
     ])
     setEnterprises(entData); setActions(actData); setProfiles(profData); setSectors(secData)
+    setScores(Object.fromEntries((scoreData || []).map(s => [s.enterprise_id, s])))
     setLoading(false)
   }
 
@@ -335,6 +339,7 @@ export default function Dashboard() {
                 <div key={ent.id} onClick={() => navigate(`/entreprises/${ent.id}`)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-amber-50/50 hover:bg-amber-50 cursor-pointer transition-colors">
                   <Bell size={14} className="text-amber-500 flex-shrink-0" />
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent.name}</p><p className="text-xs text-gray-500">{sector?.name || '—'} · {ent.department || '—'}</p></div>
+                  {scores[ent.id] && ent.status === 'prospect' && <Flames score={scores[ent.id].score} size="text-xs" title={scores[ent.id].reason} />}
                   <span className={`text-xs px-2 py-0.5 rounded-lg ${ent.status === 'client' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700'}`}>{ent.status === 'client' ? 'Client' : 'Prospect'}</span>
                 </div>
               )
@@ -356,6 +361,7 @@ export default function Dashboard() {
                 <div key={action.id} onClick={() => ent && navigate(`/entreprises/${ent.id}`)} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${isOverdue ? 'bg-red-50 hover:bg-red-100' : 'bg-gray-50 hover:bg-gray-100'}`}>
                   <Clock size={14} className={isOverdue ? 'text-red-500' : 'text-gray-400'} />
                   <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{ent?.name || '?'}</p><p className="text-xs text-gray-500">{action.next_action} — {performer?.full_name}</p></div>
+                  {ent && scores[ent.id] && ent.status === 'prospect' && <Flames score={scores[ent.id].score} size="text-xs" title={scores[ent.id].reason} />}
                   <span className={`text-xs font-medium ${isOverdue ? 'text-red-600' : 'text-gray-600'}`}>{isOverdue ? '⚠️ ' : ''}{formatDate(action.next_action_date)}</span>
                 </div>
               )
