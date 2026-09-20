@@ -7,7 +7,7 @@ export const MATURITIES = ['Froid', 'Tiède', 'Chaud']
 export const RESULTS = ['À relancer', 'RDV pris', 'Refus', 'Sans suite', 'Signé']
 
 // Libellés de prochaine action (liste fermée)
-export const NEXT_ACTIONS = ['Relance téléphonique', 'Relance par mail', 'Visite', 'Envoi de candidats', 'Envoi de proposition', 'Autre']
+export const NEXT_ACTIONS = ['Relance téléphonique', 'Relance par mail', 'Visite', 'Envoi de candidature', 'Envoi de proposition', 'Autre']
 
 export const DEPARTMENTS = ['67', '68']
 
