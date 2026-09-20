@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.15.0-démo'
+export const APP_DISPLAY_VERSION = '2.16.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.16.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Mode démo bien visible : bandeau violet fixe en haut de toutes les pages, menu latéral teinté avec liseré violet, titre d\'onglet « DÉMO · GermaClients »',
+    ],
+  },
   {
     version: '2.15.0-démo',
     date: '2026-09-20',

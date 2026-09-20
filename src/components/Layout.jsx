@@ -55,7 +55,7 @@ export default function Layout() {
     <div className="min-h-screen bg-gray-50">
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-white border-r border-gray-100 px-4 py-6">
+        <div className="flex flex-col flex-grow bg-violet-50 border-r-4 border-violet-400 px-4 py-6">
           {/* Logo */}
           <div className="flex flex-col items-center px-3 mb-8">
             <div className="flex items-center gap-2 mb-3">
@@ -65,7 +65,7 @@ export default function Layout() {
             <h1 className="font-display font-bold text-germa-900 text-lg leading-tight">GermaClients</h1>
             <p className="text-[10px] text-germa-600 uppercase tracking-widest font-medium">Activité Commerciale</p>
             <div className="mt-3 w-full rounded-xl bg-violet-50 border border-violet-200 text-violet-800 text-[11px] px-3 py-2 leading-snug">
-              <span className="font-semibold">✨ Démo assistant IA</span> — copie en lecture seule : rien de ce que vous saisissez n'est enregistré. Les résultats « IA » sont simulés.
+              <span className="font-semibold">🧪 Environnement de démo</span> — copie en lecture seule de la vraie base : rien de ce que vous saisissez n'est enregistré. Les fonctions ✨ sont réelles (Worker IA).
             </div>
           </div>
 
@@ -104,7 +104,7 @@ export default function Layout() {
       </aside>
 
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-violet-50 border-b-4 border-violet-400 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <img src="/logo_etti.jpg" alt="GERMA ETTI" className="h-9 rounded-lg bg-white shadow-sm p-0.5" />
           <img src="/logo_ai.jpg" alt="GERMA AI" className="h-9 rounded-lg bg-white shadow-sm p-0.5" />
@@ -151,7 +151,9 @@ export default function Layout() {
 
       {/* Main content */}
       <main className="lg:pl-64 pt-16 lg:pt-0">
-        <div className="lg:hidden bg-violet-600 text-white text-xs text-center py-1.5 px-3">✨ Démo IA — lecture seule, résultats simulés</div>
+        <div className="sticky top-16 lg:top-0 z-30 bg-violet-600 text-white text-xs sm:text-sm font-semibold text-center py-2 px-3 tracking-wide shadow-md">
+          🧪 ENVIRONNEMENT DE DÉMO — lecture seule, rien n'est enregistré · prod : germa-clients.pages.dev
+        </div>
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           <Outlet />
         </div>
