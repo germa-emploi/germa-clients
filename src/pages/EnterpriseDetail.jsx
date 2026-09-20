@@ -990,20 +990,24 @@ function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, pre
   const [ready, setReady] = useState(false)
   const [draft, setDraft] = useState(null)
   const [source, setSource] = useState('')
-  const generate = async () => {
+  const [useNews, setUseNews] = useState(true)
+  const generate = async (withNews = useNews) => {
     setReady(false)
-    const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, presse, kind: actions.length ? 'relance' : 'premier contact' })
+    const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, presse: withNews ? presse : [], kind: actions.length ? 'relance' : 'premier contact' })
     const res = await aiRequest('mail', ctx)
     if (res?.result?.subject && res?.result?.body) { setDraft(res.result); setSource(`Rédigé par ${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus, ${res.usage?.output_tokens ?? '?'} écrits`) }
     else { await new Promise(r => setTimeout(r, 900)); setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setSource('Gabarit local (IA indisponible)') }
     setReady(true)
   }
-  useEffect(() => { generate() }, [])
+  useEffect(() => { generate(true) }, [])
   const copy = () => { navigator.clipboard?.writeText(`Objet : ${draft.subject}\n\n${draft.body}`).then(() => alert('Brouillon copié dans le presse-papier')) }
   const mailto = () => { window.location.href = `mailto:${enterprise.email || ''}?subject=${encodeURIComponent(draft.subject)}&body=${encodeURIComponent(draft.body)}` }
   return (
     <AiFrame title="Rédiger un e-mail" onClose={onClose} footer={ready && <>
-      <button onClick={generate} className="btn-secondary text-sm">↻ Autre version</button>
+      <div className="flex items-center gap-3">
+        <button onClick={() => generate()} className="btn-secondary text-sm">↻ Autre version</button>
+        {presse.length > 0 && <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer"><input type="checkbox" checked={useNews} onChange={e => { setUseNews(e.target.checked); generate(e.target.checked) }} className="accent-violet-600" /> 📰 Tenir compte de l'actu</label>}
+      </div>
       <div className="flex gap-2"><button onClick={onClose} className="btn-secondary">Annuler</button><button onClick={copy} className="btn-secondary">Copier</button><button onClick={mailto} className="btn-primary">Ouvrir dans Outlook</button></div>
     </>}>
       {!ready ? <Thinking label={`Lecture des ${actions.length} actions de la fiche, rédaction…`} /> : <div className="space-y-3">

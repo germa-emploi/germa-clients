@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.28.1-démo'
+export const APP_DISPLAY_VERSION = '2.29.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.29.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Rédiger un e-mail : case « Tenir compte de l\'actu » (cochée par défaut, visible quand la fiche a des mentions presse) ; la décocher régénère le mail sans l\'actualité',
+      'Les filtres et tris des listes sont oubliés à la déconnexion (ils restent mémorisés le temps de la session)',
+    ],
+  },
   {
     version: '2.28.1-démo',
     date: '2026-09-20',
