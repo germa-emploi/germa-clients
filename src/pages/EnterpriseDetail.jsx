@@ -377,7 +377,6 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Suivi / Contact</label><input value={form.contact} onChange={e => update('contact', e.target.value)} className="input-field" /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">{saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={16} />}<span>Enregistrer</span></button>
@@ -441,7 +440,6 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Suivi / Contact</label><input value={form.contact} onChange={e => update('contact', e.target.value)} className="input-field" /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>

@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.12.0'
+export const APP_DISPLAY_VERSION = '2.13.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.13.0',
+    date: '2026-09-20',
+    changes: [
+      'Champ « Suivi / Contact » retiré des formulaires d\'action (doublon avec résultat, prochaine étape et commentaire) ; les anciennes valeurs restent visibles dans l\'historique et l\'export',
+    ],
+  },
   {
     version: '2.12.0',
     date: '2026-09-20',
