@@ -26,6 +26,7 @@ export default function EnterpriseDetail() {
   const [enterprise, setEnterprise] = useState(null)
   const [showMail, setShowMail] = useState(false)
   const [heat, setHeat] = useState(null)
+  const [presse, setPresse] = useState([])
   const [showBrief, setShowBrief] = useState(false)
   const [actions, setActions] = useState([])
   const [sectors, setSectors] = useState([])
@@ -47,6 +48,7 @@ export default function EnterpriseDetail() {
 
   async function loadData() {
     supabase.from('ia_scores').select('*').eq('enterprise_id', id).maybeSingle().then(({ data }) => setHeat(data || null))
+    supabase.from('ia_veille').select('*').eq('enterprise_id', id).eq('kind', 'mention').order('created_at', { ascending: false }).then(({ data }) => setPresse(data || []))
     setLoading(true)
     const [entRes, actData, secData, profData, interData] = await Promise.all([
       supabase.from('enterprises').select('*').eq('id', id).single(),
@@ -273,6 +275,21 @@ export default function EnterpriseDetail() {
           </div>
         )}
       </div>
+
+      {presse.length > 0 && (
+        <div className="card p-5 border-blue-100">
+          <h3 className="font-display font-semibold text-gray-900 text-sm mb-3">📰 Dans la presse</h3>
+          <div className="space-y-2">
+            {presse.map(p => (
+              <div key={p.id} className="text-sm">
+                <a href={p.url} target="_blank" rel="noopener noreferrer" className="text-blue-700 hover:underline font-medium">{p.title}</a>
+                <span className="text-xs text-gray-400"> — {p.source}, {formatDate(p.published_at || p.created_at)}</span>
+                {p.summary && <p className="text-gray-600 mt-0.5">{p.summary}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex items-center justify-between">

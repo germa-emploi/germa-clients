@@ -48,6 +48,12 @@ Réponds UNIQUEMENT avec un JSON : {"date": "AAAA-MM-JJ" ou "", "label": "un lib
 Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition ; et une raison en 20 mots maximum, factuelle.
 Réponds UNIQUEMENT avec un JSON compact sur une ligne, contenant EXACTEMENT 5 éléments (jamais plus), sans aucun texte avant ou après : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
 
+  veille_mention: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). On te donne un article de presse et le nom d'une entreprise de notre base qui semble y être citée. Dis si l'article parle bien de CETTE entreprise (et pas d'une homonyme), et résume en deux phrases ce que ça change pour un commercial : chantier ou marché gagné, extension, recrutement, difficulté, clause d'insertion…
+Réponds UNIQUEMENT avec un JSON : {"match": true|false, "summary": "deux phrases maximum", "department": "67"|"68"|""}`,
+
+  veille_pistes: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique en Alsace : mise à disposition de personnel, intérim d'insertion, heures d'insertion sur marchés clausés). On te donne des titres et extraits d'articles régionaux. Repère les ENTREPRISES ou collectivités qui pourraient avoir besoin de main-d'œuvre en Alsace prochainement : marché public attribué (surtout avec clause sociale), chantier annoncé, ouverture ou extension de site, recrutement de volume, activité saisonnière. Ignore les particuliers, les associations sans activité économique, les entreprises hors Alsace, et les articles sans piste concrète. Pour chaque piste : le nom exact de l'entreprise, la ville si connue, le département (67, 68 ou vide), l'article (numéro) et une raison en 25 mots maximum.
+Réponds UNIQUEMENT avec un JSON : {"pistes": [{"article": 1, "company": "...", "city": "...", "department": "67", "why": "..."}]}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -146,6 +152,96 @@ async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {})
   return out
 }
 
+// ---------- Veille presse ----------
+// Sources : flux RSS/Atom gratuits. Ajuster la liste selon ce que /veille-test rapporte.
+const FEEDS = [
+  { name: 'DNA – Économie', url: 'https://www.dna.fr/economie/rss' },
+  { name: "L'Alsace – Économie", url: 'https://www.lalsace.fr/economie/rss' },
+  { name: 'DNA – Bas-Rhin', url: 'https://www.dna.fr/edition-de-strasbourg/rss' },
+  { name: "L'Alsace – Haut-Rhin", url: 'https://www.lalsace.fr/edition-de-mulhouse/rss' },
+  { name: 'Rue89 Strasbourg', url: 'https://www.rue89strasbourg.com/feed' },
+  { name: 'Eurométropole – actus', url: 'https://www.strasbourg.eu/rss' },
+  { name: 'BOAMP – 67', url: 'https://www.boamp.fr/avis/rss?departement=67' },
+  { name: 'BOAMP – 68', url: 'https://www.boamp.fr/avis/rss?departement=68' },
+]
+const strip = (s) => (s || '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+function parseFeed(xml) {
+  const items = []
+  const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || []
+  for (const b of blocks) {
+    const tag = (n) => { const m = b.match(new RegExp(`<${n}[^>]*>([\\s\\S]*?)<\\/${n}>`, 'i')); return m ? strip(m[1]) : '' }
+    let link = tag('link'); if (!link) { const m = b.match(/<link[^>]*href="([^"]+)"/i); link = m ? m[1] : '' }
+    const title = tag('title'); const desc = tag('description') || tag('summary') || tag('content')
+    const date = tag('pubDate') || tag('published') || tag('updated') || tag('dc:date')
+    if (title && link) items.push({ title, link: link.trim(), desc: desc.slice(0, 600), date })
+  }
+  return items
+}
+async function fetchFeeds(only) {
+  const out = []; const report = []
+  for (const f of FEEDS.filter(f => !only || only.includes(f.name))) {
+    try {
+      const r = await fetch(f.url, { headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GermaClientsVeille/1.0)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' }, cf: { cacheTtl: 0 } })
+      const txt = r.ok ? await r.text() : ''
+      const items = r.ok ? parseFeed(txt) : []
+      report.push({ source: f.name, status: r.status, items: items.length })
+      items.forEach(i => out.push({ ...i, source: f.name }))
+    } catch (e) { report.push({ source: f.name, error: e.message }) }
+  }
+  return { items: out, report }
+}
+const normName = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\b(SARL|SAS|SA|EURL|EARL|SCEA|GAEC|SCI|ETS|ETABLISSEMENTS|ENTREPRISE|SOCIETE|GROUPE|ET FILS|FRERES|CIE|COMPAGNIE)\b/g, ' ').replace(/\s+/g, ' ').trim()
+async function veille(env, { dryRun = false, maxPistesArticles = 40 } = {}) {
+  const { items, report } = await fetchFeeds()
+  const out = { report, articles: items.length, mentions: 0, pistes: 0, errors: [], tokens: 0 }
+  if (!items.length) return out
+  const since = new Date(Date.now() - 3 * 86400000)
+  const recent = items.filter(i => { const d = i.date ? new Date(i.date) : null; return !d || isNaN(d) || d >= since })
+  const existing = await sbAll(env, 'ia_veille?select=url,kind,enterprise_id,company_name')
+  const seen = new Set(existing.map(v => `${v.kind}|${v.url}|${v.enterprise_id || v.company_name || ''}`))
+  const ents = await sbAll(env, 'enterprises?select=id,name,city,department,status')
+  // index : nom normalisé (≥ 6 caractères, ≥ 2 mots ou 1 mot rare) → entreprise
+  const index = ents.map(e => ({ e, key: normName(e.name) })).filter(x => x.key.length >= 6 && !/^(MAIRIE|COMMUNE|VILLE|SCI)\b/.test(x.key))
+  // ---- mentions ----
+  for (const it of recent) {
+    const text = normName(`${it.title} ${it.desc}`)
+    for (const { e, key } of index) {
+      if (!text.includes(` ${key} `) && !text.startsWith(key + ' ') && !text.endsWith(' ' + key) && text !== key) continue
+      const k = `mention|${it.link}|${e.id}`; if (seen.has(k)) continue
+      seen.add(k)
+      if (dryRun) { out.mentions++; continue }
+      try {
+        const { result, model, usage } = await askClaude(env, 'veille_mention', `Entreprise de notre base : ${e.name} (${e.city || '?'}, ${e.department || '?'})\nArticle (${it.source}) : ${it.title}\n${it.desc}\nURL : ${it.link}`)
+        out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
+        if (!result.match) continue
+        await sb(env, 'ia_veille', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ kind: 'mention', enterprise_id: e.id, company_name: e.name, city: e.city, department: e.department || result.department || null, title: it.title, url: it.link, source: it.source, published_at: it.date && !isNaN(new Date(it.date)) ? new Date(it.date).toISOString().slice(0, 10) : null, summary: String(result.summary || '').slice(0, 500), model }) })
+        out.mentions++
+      } catch (err) { out.errors.push(`${e.name}: ${err.message}`) }
+    }
+  }
+  // ---- pistes : articles récents non traités, par lots de 15 ----
+  const pisteSeenUrls = new Set(existing.filter(v => v.kind === 'piste').map(v => v.url))
+  const cands = recent.filter(i => !pisteSeenUrls.has(i.link) && !/boamp/i.test(i.source) ? true : !pisteSeenUrls.has(i.link)).slice(0, maxPistesArticles)
+  if (dryRun) { out.pistesCandidats = cands.length; return out }
+  const nameKeys = new Set(index.map(x => x.key))
+  for (let i = 0; i < cands.length; i += 15) {
+    const lot = cands.slice(i, i + 15)
+    const ctx = lot.map((a, n) => `[${n + 1}] (${a.source}) ${a.title} — ${a.desc.slice(0, 300)}`).join('\n')
+    try {
+      const { result, model, usage } = await askClaude(env, 'veille_pistes', ctx)
+      out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
+      for (const p of (result.pistes || [])) {
+        const a = lot[(+p.article || 0) - 1]; if (!a || !p.company) continue
+        if (nameKeys.has(normName(p.company))) continue // déjà en base
+        const k = `piste|${a.link}|${p.company}`; if (seen.has(k)) continue; seen.add(k)
+        await sb(env, 'ia_veille', { method: 'POST', headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: JSON.stringify({ kind: 'piste', company_name: String(p.company).slice(0, 120), city: p.city || null, department: ['67', '68'].includes(String(p.department)) ? String(p.department) : null, title: a.title, url: a.link, source: a.source, published_at: a.date && !isNaN(new Date(a.date)) ? new Date(a.date).toISOString().slice(0, 10) : null, why: String(p.why || '').slice(0, 300), model }) })
+        out.pistes++
+      }
+    } catch (err) { out.errors.push(`pistes lot ${i / 15 + 1}: ${err.message}`) }
+  }
+  return out
+}
+
 // ---------- Suggestions du jour (par commercial) ----------
 const HIDDEN_EMAILS = ['ymonteiro@hotmail.com', 'solo6782@gmail.com']
 async function dailySuggestions(env, { date, force = [] } = {}) {
@@ -189,6 +285,7 @@ export default {
     ctx.waitUntil((async () => {
       const r1 = await nightlyScoring(env); console.log('Notation nocturne :', JSON.stringify(r1))
       const r2 = await dailySuggestions(env); console.log('Suggestions du jour :', JSON.stringify(r2))
+      const r3 = await veille(env); console.log('Veille presse :', JSON.stringify(r3))
     })())
   },
 
@@ -203,6 +300,12 @@ export default {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
       if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await nightlyScoring(env, { hours: b.hours ?? 26, limit: b.limit || 150, force: b.force || [] })), { status: 200, headers }) }
+      catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
+    if (['/veille', '/veille-test'].includes(new URL(request.url).pathname)) {
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test' })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/daily') {

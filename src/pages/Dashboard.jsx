@@ -31,6 +31,7 @@ export default function Dashboard() {
   const [sectors, setSectors] = useState([])
   const [scores, setScores] = useState({})
   const [suggestions, setSuggestions] = useState([])
+  const [veilleNew, setVeilleNew] = useState({ mention: 0, piste: 0 })
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
@@ -59,6 +60,7 @@ export default function Dashboard() {
     setEnterprises(entData); setActions(actData); setProfiles(profData); setSectors(secData)
     setScores(Object.fromEntries((scoreData || []).map(s => [s.enterprise_id, s])))
     setSuggestions(sugData || [])
+    supabase.from('ia_veille').select('kind').eq('status', 'new').then(({ data }) => setVeilleNew({ mention: (data || []).filter(v => v.kind === 'mention').length, piste: (data || []).filter(v => v.kind === 'piste').length }))
     setLoading(false)
   }
 
@@ -205,7 +207,10 @@ export default function Dashboard() {
           <h1 className="font-display font-bold text-2xl text-gray-900">Bonjour {profile?.full_name?.split(' ')[0]} 👋</h1>
           <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de la prospection</p>
         </div>
-        <button onClick={() => setShowPrio(true)} className="self-start flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Priorités de la semaine</button>
+        <div className="flex items-center gap-2 self-start">
+          {(veilleNew.mention + veilleNew.piste) > 0 && <button onClick={() => navigate('/presse')} className="flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">📰 {veilleNew.mention} mention{veilleNew.mention > 1 ? 's' : ''} · {veilleNew.piste} piste{veilleNew.piste > 1 ? 's' : ''}</button>}
+          <button onClick={() => setShowPrio(true)} className="flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors">✨ Priorités de la semaine</button>
+        </div>
       </div>
       {showPrio && <PrioritiesModal enterprises={enterprises} actions={actions} profiles={profiles} onClose={() => setShowPrio(false)} onOpen={(id) => navigate(`/entreprise/${id}`)} />}
 

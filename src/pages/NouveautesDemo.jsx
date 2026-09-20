@@ -1,4 +1,4 @@
-import { Sparkles, Mail, ClipboardList, Flame, CalendarClock, Trophy } from 'lucide-react'
+import { Sparkles, Mail, ClipboardList, Flame, CalendarClock, Trophy, Newspaper } from 'lucide-react'
 
 // Page de présentation, pensée pour une démo en direct : quoi, où, pour quoi faire.
 const ITEMS = [
@@ -11,6 +11,9 @@ const ITEMS = [
   { icon: Sparkles, title: 'Suggestions du jour', where: 'Tableau de bord, à droite des relances',
     what: 'Chaque nuit, l\'assistant choisit pour chaque commercial les 5 prospects à traiter le lendemain, avec l\'action conseillée et la raison.',
     why: 'Commencer la journée avec une liste courte plutôt qu\'une longue liste de relances.', mois: '1,70 €', an: '20 €', base: '2 commerciaux, un calcul par nuit' },
+  { icon: Newspaper, title: 'Presse & actus', where: 'Menu · fiche entreprise · tableau de bord',
+    what: 'Chaque nuit, lecture de la presse régionale et des marchés publics : les articles qui citent une entreprise de la base sont rattachés à sa fiche avec un résumé et le lien ; les entreprises absentes de la base deviennent des pistes à valider (Créer le prospect / Ignorer).',
+    why: 'Savoir avant l\'appel, et détecter les chantiers et marchés clausés avant les autres.', mois: '0,80 €', an: '10 €', base: 'flux gratuits, IA seulement sur les correspondances' },
   { icon: Mail, title: 'Rédiger un e-mail', where: 'Fiche entreprise',
     what: 'Un brouillon de relance ou de premier contact, écrit à partir de l\'historique de la fiche. Modifiable, puis copié ou ouvert dans Outlook.',
     why: 'Un mail personnalisé en 10 secondes au lieu de 5 minutes.', mois: '0,30 €', an: '3,50 €', base: '~60 mails par mois' },
@@ -49,7 +52,7 @@ export default function NouveautesDemo() {
         ))}
       </div>
       <div className="card p-5 bg-violet-50 border-violet-200 text-sm text-violet-900 space-y-1">
-        <p><span className="font-semibold">Total estimé : environ 3 € par mois, 35 € par an</span>, pour toute l'équipe — calculé sur l'activité réelle (150 actions par mois) et les consommations mesurées pendant la démo. Le budget peut être plafonné sur le compte API.</p>
+        <p><span className="font-semibold">Total estimé : environ 4 € par mois, 45 € par an</span>, pour toute l'équipe — calculé sur l'activité réelle (150 actions par mois) et les consommations mesurées pendant la démo. Le budget peut être plafonné sur le compte API.</p>
         <p>Les données restent dans la base GERMA ; seul le contexte de la fiche concernée est envoyé à l'IA au moment du calcul, sans conservation de son côté.</p>
       </div>
     </div>

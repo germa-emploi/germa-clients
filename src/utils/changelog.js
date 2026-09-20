@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.27.0-démo'
+export const APP_DISPLAY_VERSION = '2.28.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.28.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '📰 Presse & actus (menu, tous les comptes, filtre 67/68) : veille nocturne sur la presse régionale et les marchés publics — mentions des entreprises de la base avec résumé et lien vers l\'article, pistes de nouveaux prospects à valider (Créer le prospect / Ignorer, ce dernier réservé à la direction)',
+      'Fiche entreprise : bloc « Dans la presse » ; tableau de bord : compteur des mentions et pistes à traiter',
+    ],
+  },
   {
     version: '2.27.0-démo',
     date: '2026-09-20',

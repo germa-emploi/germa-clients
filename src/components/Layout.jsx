@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History, Sparkles
+  History, Sparkles, Newspaper
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 import { supabase } from '../lib/supabase'
@@ -14,6 +14,7 @@ const navItems = [
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
   { to: '/historique', icon: History, label: 'Historique' },
+  { to: '/presse', icon: Newspaper, label: 'Presse & actus' },
   { to: '/nouveautes-demo', icon: Sparkles, label: 'Nouveautés démo' },
 ]
 
