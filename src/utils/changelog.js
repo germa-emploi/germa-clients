@@ -1,11 +1,18 @@
-export const APP_DISPLAY_VERSION = '2.15.0'
+export const APP_DISPLAY_VERSION = '2.15.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.15.1',
+    date: '2026-09-20',
+    changes: [
+      '« Envoi de candidats » renommé « Envoi de candidature » dans la liste des prochaines actions',
+    ],
+  },
   {
     version: '2.15.0',
     date: '2026-09-20',
     changes: [
-      '« Prochaine action » devient une liste (Relance téléphonique, Relance par mail, Visite, Envoi de candidats, Envoi de proposition, Autre), pré-remplie sur « Relance téléphonique »',
+      '« Prochaine action » devient une liste (Relance téléphonique, Relance par mail, Visite, Envoi de candidature, Envoi de proposition, Autre), pré-remplie sur « Relance téléphonique »',
       'Anciennes saisies harmonisées dans la base (« relance tél », « Téléphonique »… → « Relance téléphonique », etc.)',
     ],
   },
