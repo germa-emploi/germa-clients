@@ -67,7 +67,7 @@ export default function Dashboard() {
     const totalEnterprises = enterprises.length
     const prospects = enterprises.filter(e => e.status === 'prospect').length
     const clients = enterprises.filter(e => e.status === 'client').length
-    const aRelancer = enterprises.filter(e => e.a_relancer).length
+    const aRelancer = enterprises.filter(e => e.a_relancer && (isDirection || e.assigned_to === profile?.id)).length
     const conversionsAnnee = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear).length
     const conversionsMois = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear && new Date(e.converted_at).getMonth() === thisMonth).length
     const rdvAnnee = actions.filter(a => a.result === 'RDV pris' && new Date(a.performed_at).getFullYear() === thisYear).length
@@ -106,12 +106,14 @@ export default function Dashboard() {
         latestActionByEnt[a.enterprise_id] = a
       }
     })
+    // Un commercial ne voit que les relances des entreprises qui lui sont assignées ; la direction voit tout.
+    const mine = (entId) => isDirection || enterprises.find(e => e.id === entId)?.assigned_to === profile?.id
     const upcomingRelances = Object.values(latestActionByEnt)
-      .filter(a => a.next_action_date && a.result === 'À relancer')
+      .filter(a => a.next_action_date && a.result === 'À relancer' && mine(a.enterprise_id))
       .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date)).slice(0, 15)
-    const entreprisesARelancer = enterprises.filter(e => e.a_relancer).slice(0, 8)
+    const entreprisesARelancer = enterprises.filter(e => e.a_relancer && mine(e.id)).slice(0, 8)
     return { totalEnterprises, prospects, clients, aRelancer, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances, entreprisesARelancer }
-  }, [enterprises, actions, profiles, sectors])
+  }, [enterprises, actions, profiles, sectors, isDirection, profile?.id])
 
   // Activity chart data builder
   function buildMonthlyData(startYear, startMonth, endYear, endMonth) {
@@ -318,7 +320,7 @@ export default function Dashboard() {
       {stats.entreprisesARelancer.length > 0 && (
         <div className="card p-4 sm:p-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-display font-semibold text-gray-900 text-sm">🔔 Entreprises à relancer</h3>
+            <h3 className="font-display font-semibold text-gray-900 text-sm">🔔 {isDirection ? 'Entreprises à relancer' : 'Mes entreprises à relancer'}</h3>
             <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-lg">{stats.aRelancer} total</span>
           </div>
           <div className="space-y-1.5">
@@ -339,7 +341,7 @@ export default function Dashboard() {
       {/* Relances */}
       {stats.upcomingRelances.length > 0 && (
         <div className="card p-4 sm:p-5">
-          <h3 className="font-display font-semibold text-gray-900 mb-3 text-sm">⏰ Prochaines relances planifiées</h3>
+          <h3 className="font-display font-semibold text-gray-900 mb-3 text-sm">⏰ {isDirection ? 'Prochaines relances planifiées' : 'Mes prochaines relances'}</h3>
           <div className="space-y-1.5">
             {stats.upcomingRelances.map(action => {
               const ent = enterprises.find(e => e.id === action.enterprise_id)

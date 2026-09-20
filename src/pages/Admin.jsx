@@ -55,12 +55,27 @@ function UsersTab() {
   const [profiles, setProfiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [showCreate, setShowCreate] = useState(false)
+  const [deactivating, setDeactivating] = useState(null) // profil en cours de désactivation
 
   useEffect(() => { loadProfiles() }, [])
   async function loadProfiles() { setLoading(true); const data = await fetchAll('profiles', { order: { column: 'created_at', ascending: true } }); setProfiles(data); setLoading(false) }
   async function toggleActive(p) {
-    await supabase.from('profiles').update({ is_active: !p.is_active }).eq('id', p.id)
-    await logActivity({ type: p.is_active ? ACTIVITY_TYPES.USER_DEACTIVATED : ACTIVITY_TYPES.USER_REACTIVATED, userId: myProfile?.id, targetType: 'user', targetId: p.id, targetName: p.full_name })
+    if (p.is_active) { setDeactivating(p); return } // la désactivation passe par la fenêtre de réattribution
+    await supabase.from('profiles').update({ is_active: true }).eq('id', p.id)
+    await logActivity({ type: ACTIVITY_TYPES.USER_REACTIVATED, userId: myProfile?.id, targetType: 'user', targetId: p.id, targetName: p.full_name })
+    loadProfiles()
+  }
+  async function confirmDeactivate(p, reassignTo) {
+    let count = 0
+    if (reassignTo) {
+      const { data } = await supabase.from('enterprises').update({ assigned_to: reassignTo }).eq('assigned_to', p.id).select('id')
+      count = data?.length || 0
+      const target = profiles.find(x => x.id === reassignTo)
+      await logActivity({ type: ACTIVITY_TYPES.ENTERPRISE_UPDATED, userId: myProfile?.id, targetType: 'user', targetId: p.id, targetName: p.full_name, details: `${count} entreprise${count > 1 ? 's' : ''} réattribuée${count > 1 ? 's' : ''} à ${target?.full_name || '?'}` })
+    }
+    await supabase.from('profiles').update({ is_active: false }).eq('id', p.id)
+    await logActivity({ type: ACTIVITY_TYPES.USER_DEACTIVATED, userId: myProfile?.id, targetType: 'user', targetId: p.id, targetName: p.full_name })
+    setDeactivating(null)
     loadProfiles()
   }
   async function changeRole(profile, newRole) { await supabase.from('profiles').update({ role: newRole }).eq('id', profile.id); loadProfiles() }
@@ -88,6 +103,7 @@ function UsersTab() {
           </div>
         ))}
       </div>
+      {deactivating && <DeactivateModal profile={deactivating} candidates={profiles.filter(x => x.is_active && x.id !== deactivating.id && !isHiddenAccount(x))} onCancel={() => setDeactivating(null)} onConfirm={(to) => confirmDeactivate(deactivating, to)} />}
       {showCreate && <CreateUserModal onClose={() => setShowCreate(false)} onCreated={() => { setShowCreate(false); loadProfiles() }} />}
     </div>
   )
@@ -541,3 +557,39 @@ function BackupTab() {
 }
 
 function downloadFile(content, filename, type) { const blob = new Blob([content], { type }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; a.click(); URL.revokeObjectURL(url) }
+
+
+// Désactivation d'un compte : proposer de réattribuer ses entreprises à un autre commercial
+function DeactivateModal({ profile, candidates, onCancel, onConfirm }) {
+  const [count, setCount] = useState(null)
+  const [to, setTo] = useState('')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { supabase.from('enterprises').select('id', { count: 'exact', head: true }).eq('assigned_to', profile.id).then(({ count }) => setCount(count ?? 0)) }, [profile.id])
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="font-display font-semibold text-lg">Désactiver {profile.full_name}</h2>
+          <button onClick={onCancel} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button>
+        </div>
+        <div className="p-6 space-y-4 text-sm text-gray-700">
+          <p>Le compte ne pourra plus se connecter. Ses actions et son historique sont conservés.</p>
+          {count === null ? <p className="text-gray-400">Comptage des entreprises…</p> : count === 0 ? <p>Aucune entreprise ne lui est assignée.</p> : (
+            <div>
+              <p className="mb-2"><span className="font-semibold">{count} entreprise{count > 1 ? 's' : ''}</span> lui {count > 1 ? 'sont assignées' : 'est assignée'}. Sans réattribution, leurs relances n'apparaîtront plus que chez la direction.</p>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Réattribuer à</label>
+              <select value={to} onChange={e => setTo(e.target.value)} className="input-field">
+                <option value="">— Ne pas réattribuer —</option>
+                {candidates.map(c => <option key={c.id} value={c.id}>{c.full_name}{c.role === 'direction' ? ' (direction)' : ''}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end gap-2">
+          <button onClick={onCancel} className="btn-secondary">Annuler</button>
+          <button disabled={busy || count === null} onClick={() => { setBusy(true); onConfirm(to || null) }} className="btn-primary bg-red-600 hover:bg-red-700 disabled:opacity-50">{busy ? 'En cours…' : 'Désactiver'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
