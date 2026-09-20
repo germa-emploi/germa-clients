@@ -350,7 +350,7 @@ export default function Dashboard() {
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
         const today = todayISO()
-        const ACT_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' }
+        const ACT_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄', "Aucune action pour l'instant": '⏸️' }
         const URG = { 3: { label: 'Urgent', cls: 'bg-red-600 text-white' }, 2: { label: 'À faire', cls: 'bg-orange-500 text-white' }, 1: { label: 'Peut attendre', cls: 'bg-gray-200 text-gray-700' }, 0: { label: 'À solder', cls: 'bg-slate-700 text-white' } }
         const lvl = (a) => urgences[a.enterprise_id]?.level
         const lateAll = stats.upcomingRelances.filter(a => a.next_action_date < today).sort((a, b) => ((lvl(b) ?? -1) - (lvl(a) ?? -1)) || a.next_action_date.localeCompare(b.next_action_date))
@@ -668,7 +668,7 @@ function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirect
   const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
   const groups = {}
   mine.forEach(s => { (groups[s.profile_id] = groups[s.profile_id] || []).push(s) })
-  const ACTION_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' }
+  const ACTION_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄', "Aucune action pour l'instant": '⏸️' }
   return (
     <div id="bloc-jour" className="scroll-mt-24 card p-4 sm:p-5 border-violet-200">
       <div className="flex items-center justify-between mb-3">

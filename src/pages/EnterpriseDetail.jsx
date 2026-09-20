@@ -211,7 +211,7 @@ export default function EnterpriseDetail() {
                 <div className="mt-3 pt-3 border-t border-gray-100">
                   <p className="text-xs font-semibold text-violet-800 mb-1.5">✨ Conseil pour la relance</p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-semibold text-gray-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1">{({ 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' })[conseil.suggested_action] || '•'} {conseil.suggested_action || 'Appeler'}</span>
+                    <span className="text-sm font-semibold text-gray-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-1">{({ 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄', "Aucune action pour l'instant": '⏸️' })[conseil.suggested_action] || '•'} {conseil.suggested_action || 'Appeler'}</span>
                     <span className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-1" title="Urgence">{conseil.level === 0 ? '🧹 À solder' : `${'🏃'.repeat(conseil.level)} ${['', 'Peut attendre', 'À faire', 'Urgent'][conseil.level]}`}</span>
                   </div>
                   <p className="text-sm text-gray-600 mt-1.5">{conseil.reason} <span className="text-xs text-gray-400">(calculé le {formatDate(conseil.computed_at)})</span></p>

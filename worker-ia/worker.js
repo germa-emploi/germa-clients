@@ -62,7 +62,7 @@ Dans les textes, n'utilise jamais de guillemets droits " (utilise « » ou rien)
   urgence: `Tu es l'assistant commercial de GERMA Emploi (insertion par l'activité économique, Alsace). Date du jour : {{TODAY}}. On te donne des relances planifiées (en retard ou à venir) : pour chacune, l'entreprise, sa chaleur (1-5) et la raison, la date prévue et le retard éventuel, le dernier commentaire, la proposition en cours et l'actualité éventuelle.
 Pour chacune, donne :
 - level, l'urgence : 3 = urgent (besoin concret ou daté, interlocuteur engagé, proposition en cours, actualité favorable, retard qui met une affaire en péril) ; 2 = à faire (intérêt réel, dossier tiède à ne pas laisser refroidir) ; 1 = peut attendre (porte entrouverte sans besoin, saison lointaine, simple contact raté) ; 0 = à solder (la relance n'a plus de sens : besoin passé, pas de besoin, refus implicite, contact obsolète — à clôturer).
-- action, le meilleur moyen de relancer d'après le commentaire, parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition. Exemples : « préfère être contacté par mail » → Envoyer un mail ; « repasser voir le chef de chantier » → Passer sur site ; « attend des CV » → Envoyer des candidatures ; « demande un devis » → Envoyer une proposition ; sinon Appeler.
+- action, parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition | Aucune action pour l'instant. Si la relance est prévue dans le futur et que rien ne justifie d'agir avant (pas de besoin urgent, pas d'actualité, rien promis de notre côté), réponds « Aucune action pour l'instant » et dis dans why que la relance est déjà programmée à sa date. Sinon, choisis le meilleur moyen d'après le commentaire. Exemples : « préfère être contacté par mail » → Envoyer un mail ; « repasser voir le chef de chantier » → Passer sur site ; « attend des CV » → Envoyer des candidatures ; « demande un devis » → Envoyer une proposition ; sinon Appeler.
 - why, en 15 mots maximum, qui justifie à la fois l'urgence et le moyen choisi.
 Dans les textes, jamais de guillemets droits ". Traite TOUTES les lignes reçues, sans commentaire ni explication.
 Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "action": "...", "why": "..."}]}`,
@@ -409,7 +409,7 @@ async function urgenceRelances(env, { force = false } = {}) {
       const { result, model, usage } = await askClaude(env, 'urgence', ctx, 6000)
       out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
       const byId = new Set(lot.map(c => c.e.id))
-      const ACTIONS = ['Appeler', 'Envoyer un mail', 'Passer sur site', 'Envoyer des candidatures', 'Envoyer une proposition']
+      const ACTIONS = ['Appeler', 'Envoyer un mail', 'Passer sur site', 'Envoyer des candidatures', 'Envoyer une proposition', "Aucune action pour l'instant"]
       const rows = (result.items || []).filter(x => byId.has(x.id)).map(x => ({ enterprise_id: x.id, level: Math.max(0, Math.min(3, Math.round(Number(x.level)))), suggested_action: ACTIONS.includes(x.action) ? x.action : 'Appeler', reason: String(x.why || '').slice(0, 200), model, computed_at: new Date().toISOString() }))
       if (rows.length) await sb(env, 'ia_urgences', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify(rows) })
       out.analysed += rows.length
