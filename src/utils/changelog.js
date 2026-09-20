@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.23.0-démo'
+export const APP_DISPLAY_VERSION = '2.24.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.24.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Drapeau 🔔 « À relancer » retiré (fiche, formulaire, filtre de la liste, bloc du tableau de bord) : doublon avec l\'action « À relancer » datée',
+    ],
+  },
   {
     version: '2.23.0-démo',
     date: '2026-09-20',

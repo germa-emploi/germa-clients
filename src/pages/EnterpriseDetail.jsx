@@ -14,11 +14,6 @@ import {
   CLOSING_RESULTS, todayISO, toLocalDateISO, performedAtFromDate
 } from '../utils/constants'
 
-// Retire le drapeau "À relancer" de l'entreprise quand une action clôture le suivi
-async function clearRelanceFlagIfClosing(enterpriseId, result) {
-  if (!CLOSING_RESULTS.includes(result)) return
-  await supabase.from('enterprises').update({ a_relancer: false }).eq('id', enterpriseId).eq('a_relancer', true)
-}
 import { fetchAll } from '../utils/dataHelpers'
 import { logActivity, ACTIVITY_TYPES as LOG_TYPES } from '../utils/activityLog'
 import { draftEmail, briefBeforeCall, parseFreeText, aiRequest, buildContext } from '../demo/demo'
@@ -134,7 +129,6 @@ export default function EnterpriseDetail() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="font-display font-bold text-xl sm:text-2xl text-gray-900">{enterprise.name}</h1>
                 <span className={`badge ${statusColor.bg} ${statusColor.text}`}>{statusColor.label}</span>
-                {enterprise.a_relancer && <span className="badge bg-amber-50 text-amber-700">🔔 À relancer</span>}
                 {heat && enterprise.status === 'prospect' && <Flames score={heat.score} size="text-base" />}
               </div>
               {heat && enterprise.status === 'prospect' && (
@@ -218,10 +212,6 @@ export default function EnterpriseDetail() {
                 </button>
               </>
             )}
-            <button onClick={async () => { await supabase.from('enterprises').update({ a_relancer: !enterprise.a_relancer }).eq('id', id); loadData() }}
-              className={`btn-secondary flex items-center gap-2 text-sm ${enterprise.a_relancer ? '!border-amber-300 !text-amber-700' : ''}`}>
-              {enterprise.a_relancer ? '🔕 Retirer relance' : '🔔 À relancer'}
-            </button>
             <button onClick={() => setShowEditEnterprise(true)} className="btn-secondary flex items-center gap-2 text-sm">
               <Edit3 size={14} /> Modifier
             </button>
@@ -365,7 +355,7 @@ function AddActionModal({ enterpriseId, enterpriseName, onClose, onCreated }) {
     if (form.performed_date > todayISO()) { setError("La date de l'action ne peut pas être dans le futur."); setSaving(false); return }
     const { error: err } = await supabase.from('actions').insert({ enterprise_id: enterpriseId, performed_by: profile.id, performed_at: performedAtFromDate(form.performed_date), action_type: form.action_type, channel: form.channel, is_new_prospect: form.is_new_prospect, need_identified: form.need_identified, need_type: form.need_type || null, result: form.result, next_action: form.next_action || null, next_action_date: form.next_action_date || null, comments: form.comments || null, contact: form.contact || null }).select().single()
     if (err) { setError(err.message); setSaving(false) }
-    else { await clearRelanceFlagIfClosing(enterpriseId, form.result); await logActivity({ type: LOG_TYPES.ACTION_CREATED, userId: profile.id, targetType: 'enterprise', targetId: enterpriseId, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` }); onCreated() }
+    else { await logActivity({ type: LOG_TYPES.ACTION_CREATED, userId: profile.id, targetType: 'enterprise', targetId: enterpriseId, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` }); onCreated() }
   }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -427,7 +417,6 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
       next_action_date: form.next_action_date || null,
       comments: form.comments || null, contact: form.contact || null,
     }).eq('id', action.id)
-    await clearRelanceFlagIfClosing(action.enterprise_id, form.result)
     await logActivity({ type: LOG_TYPES.ACTION_UPDATED, userId: profile.id, targetType: 'enterprise', targetId: action.enterprise_id, targetName: enterpriseName, details: `${form.action_type} — ${form.result}` })
     onSaved()
   }
@@ -471,7 +460,7 @@ function EditEnterpriseModal({ enterprise, sectors, profiles, onClose, onSaved }
   const { profile, isDirection } = useAuth()
   const [form, setForm] = useState({
     name: enterprise.name || '', sector_id: enterprise.sector_id || '', city: enterprise.city || '', department: enterprise.department || '',
-    communaute_communes: enterprise.communaute_communes || '', a_relancer: enterprise.a_relancer || false,
+    communaute_communes: enterprise.communaute_communes || '',
     description_activite: enterprise.description_activite || '', notes: enterprise.notes || '',
     assigned_to: enterprise.assigned_to || '',
   })
@@ -483,7 +472,7 @@ function EditEnterpriseModal({ enterprise, sectors, profiles, onClose, onSaved }
     e.preventDefault(); setSaving(true)
     await supabase.from('enterprises').update({
       name: form.name.trim(), sector_id: form.sector_id || null, city: form.city.trim() || null, department: form.department || null,
-      communaute_communes: form.communaute_communes.trim() || null, a_relancer: form.a_relancer,
+      communaute_communes: form.communaute_communes.trim() || null,
       description_activite: form.description_activite.trim() || null, notes: form.notes.trim() || null,
       assigned_to: form.assigned_to || null,
     }).eq('id', enterprise.id)
@@ -513,7 +502,6 @@ function EditEnterpriseModal({ enterprise, sectors, profiles, onClose, onSaved }
           {isMairie && <div><label className="block text-sm font-medium text-gray-700 mb-1">Communauté de communes</label><input value={form.communaute_communes} onChange={e => update('communaute_communes', e.target.value)} className="input-field" /></div>}
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Description activité / besoin</label><textarea value={form.description_activite} onChange={e => update('description_activite', e.target.value)} className="input-field" rows={3} placeholder="Activité de l'entreprise, besoins identifiés…" /></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">Notes</label><textarea value={form.notes} onChange={e => update('notes', e.target.value)} className="input-field" rows={2} /></div>
-          <label className="flex items-center gap-2 text-sm cursor-pointer"><input type="checkbox" checked={form.a_relancer} onChange={e => update('a_relancer', e.target.checked)} className="rounded border-gray-300 text-germa-600" />🔔 À relancer</label>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
@@ -722,7 +710,7 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
     setInterB(iB)
     // Initialize choices with the oldest enterprise's values
     const oldest = new Date(enterprise.created_at) <= new Date(fullEnt.created_at) ? enterprise : fullEnt
-    const diffFields = ['name', 'city', 'department', 'phone', 'email', 'contact_name', 'description_activite', 'communaute_communes', 'notes', 'sector_id', 'a_relancer']
+    const diffFields = ['name', 'city', 'department', 'phone', 'email', 'contact_name', 'description_activite', 'communaute_communes', 'notes', 'sector_id']
     const init = {}
     diffFields.forEach(f => { init[f] = oldest[f] ?? '' })
     setChoices(init)
@@ -739,7 +727,6 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
     { key: 'description_activite', label: 'Activité / besoin' },
     { key: 'communaute_communes', label: 'Communauté communes' },
     { key: 'notes', label: 'Notes' },
-    { key: 'a_relancer', label: 'À relancer', format: v => v ? 'Oui' : 'Non' },
   ]
 
   function displayVal(field, val) {
