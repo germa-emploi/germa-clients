@@ -25,6 +25,21 @@ export const CHANGELOG = [
     ],
   },
   {
+    version: '2.12.0',
+    date: '2026-09-20',
+    changes: [
+      'Tableau de bord : un commercial ne voit plus que les relances (planifiées et 🔔) des entreprises qui lui sont assignées ; la direction continue de tout voir',
+      'Admin : à la désactivation d\'un compte, possibilité de réattribuer en une fois toutes ses entreprises à un autre commercial (tracé dans le journal)',
+    ],
+  },
+  {
+    version: '2.11.0',
+    date: '2026-09-19',
+    changes: [
+      '📋 Copier les e-mails (listes prospects et clients) : choisir les adresses parmi la liste filtrée — e-mail de la fiche et des interlocuteurs, sans doublon — puis les copier séparées par « ; » pour un mailing en Cci',
+    ],
+  },
+  {
     version: '2.10.0',
     date: '2026-09-18',
     changes: [
