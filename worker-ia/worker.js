@@ -103,7 +103,9 @@ async function askClaude(env, task, context) {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 2500, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
   })
-  const data = await r.json()
+  const body = await r.text()
+  let data = {}
+  try { data = JSON.parse(body) } catch { throw new Error(`API ${r.status} : réponse illisible : ${body.slice(0, 160)}`) }
   if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
   const raw = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('').trim()
   const a = raw.indexOf('{'), b = raw.lastIndexOf('}')
