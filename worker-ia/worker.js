@@ -44,6 +44,10 @@ Réponds UNIQUEMENT avec un JSON : {"score": 1-5, "reason": "..."}`,
 Règles : si le commentaire contient une date ou une échéance explicite (« rappeler jeudi », « reprise de contact début octobre », « dans 15 jours », « après les vendanges », « quand le chantier démarre fin novembre »), propose la date correspondante (un jour ouvré, le lundi suivant si l'échéance tombe un week-end). Sinon, déduis un délai raisonnable de la situation : message vocal ou mail sans réponse → 5 jours ouvrés ; « pas de besoin pour l'instant » → 2 mois ; besoin annoncé pour une saison → 3 semaines avant cette saison ; refus net → aucune date. Ne propose jamais une date passée.
 Réponds UNIQUEMENT avec un JSON : {"date": "AAAA-MM-JJ" ou "", "label": "un libellé parmi exactement : Relance téléphonique | Relance par mail | Visite | Envoi de candidature | Envoi de proposition | Autre", "why": "justification en 10 mots maximum"}`,
 
+  daily: `Tu es l'assistant commercial de GERMA Emploi. Date du jour : {{TODAY}}. On te donne la liste des prospects suivis par un commercial, avec pour chacun le score de chaleur (1-5) et sa raison, la relance planifiée s'il y en a une, la date du dernier contact et le dernier commentaire. Choisis les 5 prospects qu'il devrait traiter AUJOURD'HUI, dans l'ordre, en privilégiant : relance due aujourd'hui ou en retard, dossier chaud où c'est à nous d'agir (mail promis, candidats à envoyer, proposition à faire), besoin daté qui approche, puis dossiers tièdes sans contact depuis longtemps. Écarte ce qui est manifestement clos.
+Pour chacun : l'action conseillée parmi exactement : Appeler | Envoyer un mail | Passer sur site | Envoyer des candidatures | Envoyer une proposition ; et une raison en 20 mots maximum, factuelle.
+Réponds UNIQUEMENT avec un JSON : {"picks": [{"id": "...", "action": "...", "why": "..."}]}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -85,7 +89,7 @@ async function askClaude(env, task, context) {
   const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 400, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
+    body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 900, system: SYSTEM[task].replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: context }] }),
   })
   const data = await r.json()
   if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
@@ -125,10 +129,52 @@ async function nightlyScoring(env, { hours = 26, limit = 150, force = [] } = {})
   return out
 }
 
+// ---------- Suggestions du jour (par commercial) ----------
+const HIDDEN_EMAILS = ['ymonteiro@hotmail.com', 'solo6782@gmail.com']
+async function dailySuggestions(env, { date, force = [] } = {}) {
+  const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
+  const H = { headers: { Prefer: '' } }
+  const [profiles, ents, scores] = await Promise.all([
+    sb(env, `profiles?select=id,full_name,email,role,is_active&is_active=eq.true`, H),
+    sb(env, `enterprises?select=id,name,city,assigned_to,description_activite,a_relancer&status=eq.prospect`, H),
+    sb(env, `ia_scores?select=enterprise_id,score,reason`, H),
+  ])
+  const scoreBy = Object.fromEntries(scores.map(s => [s.enterprise_id, s]))
+  const out = { date: today, commercials: 0, suggestions: 0, errors: [], tokens: 0 }
+  const targets = profiles.filter(p => !HIDDEN_EMAILS.includes((p.email || '').toLowerCase()) && (!force.length || force.includes(p.id)))
+  for (const p of targets) {
+    const mine = ents.filter(e => e.assigned_to === p.id)
+    if (!mine.length) continue
+    const ids = mine.map(e => e.id)
+    // dernière action par entreprise (les 400 plus récentes suffisent largement)
+    const acts = await sb(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&enterprise_id=in.(${ids.join(',')})&order=performed_at.desc&limit=2000`, H)
+    const last = {}
+    acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
+    const cands = mine.map(e => ({ e, sc: scoreBy[e.id], la: last[e.id] }))
+      .filter(c => c.la && c.la.result !== 'Refus' && ((c.sc && c.sc.score >= 2) || (c.la.next_action_date && c.la.next_action_date <= today) || c.e.a_relancer))
+      .sort((a, b) => (b.sc?.score || 0) - (a.sc?.score || 0) || (a.la.next_action_date || '9') .localeCompare(b.la.next_action_date || '9'))
+      .slice(0, 40)
+    if (!cands.length) continue
+    out.commercials++
+    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${c.sc?.score ?? '?'}/5 : ${c.sc?.reason || '—'} | dernier contact ${fmtFR(c.la.performed_at)} (${c.la.result || '?'})${c.la.next_action_date ? ` | relance prévue ${fmtFR(c.la.next_action_date)}${c.la.next_action ? ` (${c.la.next_action})` : ''}` : ''}${c.e.a_relancer ? ' | drapeau à relancer' : ''} | commentaire : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}`).join('\n')
+    try {
+      const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`)
+      const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 5)
+      await sb(env, `ia_suggestions?date=eq.${today}&profile_id=eq.${p.id}`, { method: 'DELETE' })
+      if (picks.length) await sb(env, 'ia_suggestions', { method: 'POST', body: JSON.stringify(picks.map((x, i) => ({ date: today, profile_id: p.id, enterprise_id: x.id, rank: i + 1, suggested_action: String(x.action || '').slice(0, 60), reason: String(x.why || '').slice(0, 300), model }))) })
+      out.suggestions += picks.length; out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
+    } catch (err) { out.errors.push(`${p.full_name}: ${err.message}`) }
+  }
+  return out
+}
+
 export default {
   // Déclencheur planifié (Cloudflare → Settings → Triggers → Cron) : notation des fiches modifiées dans la journée
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(nightlyScoring(env).then(r => console.log('Notation nocturne :', JSON.stringify(r))))
+    ctx.waitUntil((async () => {
+      const r1 = await nightlyScoring(env); console.log('Notation nocturne :', JSON.stringify(r1))
+      const r2 = await dailySuggestions(env); console.log('Suggestions du jour :', JSON.stringify(r2))
+    })())
   },
 
   async fetch(request, env) {
@@ -142,6 +188,12 @@ export default {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
       if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await nightlyScoring(env, { hours: b.hours ?? 26, limit: b.limit || 150, force: b.force || [] })), { status: 200, headers }) }
+      catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
+    if (new URL(request.url).pathname === '/daily') {
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      try { return new Response(JSON.stringify(await dailySuggestions(env, { date: b.date, force: b.force || [] })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (!allowed.includes(origin)) return new Response(JSON.stringify({ error: 'Origine non autorisée' }), { status: 403, headers })

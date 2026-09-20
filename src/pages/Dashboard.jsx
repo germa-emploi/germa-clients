@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import Flames from '../components/Flames'
+import { todayISO } from '../utils/constants'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, AreaChart, Area,
@@ -29,6 +30,7 @@ export default function Dashboard() {
   const [profiles, setProfiles] = useState([])
   const [sectors, setSectors] = useState([])
   const [scores, setScores] = useState({})
+  const [suggestions, setSuggestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [chartModal, setChartModal] = useState(null) // 'activity' | 'results' | 'types'
   const [kpiModal, setKpiModal] = useState(null) // 'enterprises' | 'conversions' | 'rdv'
@@ -45,15 +47,17 @@ export default function Dashboard() {
 
   async function loadData() {
     setLoading(true)
-    const [entData, actData, profData, secData, scoreData] = await Promise.all([
+    const [entData, actData, profData, secData, scoreData, sugData] = await Promise.all([
       fetchAll('enterprises'),
       fetchAll('actions', { order: { column: 'performed_at', ascending: false } }),
       fetchAll('profiles'),
       fetchAll('sectors'),
       fetchAll('ia_scores'),
+      fetchAll('ia_suggestions', { filters: { date: todayISO() }, order: { column: 'rank', ascending: true } }),
     ])
     setEnterprises(entData); setActions(actData); setProfiles(profData); setSectors(secData)
     setScores(Object.fromEntries((scoreData || []).map(s => [s.enterprise_id, s])))
+    setSuggestions(sugData || [])
     setLoading(false)
   }
 
@@ -357,6 +361,7 @@ export default function Dashboard() {
         const filteredRel = stats.upcomingRelances.filter(a => { const d = new Date(a.next_action_date); return (relYear === '' || d.getFullYear() === Number(relYear)) && (relMonth === '' || d.getMonth() === Number(relMonth)) })
         const shownRel = relAll ? filteredRel : filteredRel.slice(0, 15)
         return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="card p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
             <h3 className="font-display font-semibold text-gray-900 text-sm">⏰ {isDirection ? 'Prochaines relances planifiées' : 'Mes prochaines relances'} <span className="text-xs font-normal text-gray-400">({filteredRel.length})</span></h3>
@@ -392,6 +397,8 @@ export default function Dashboard() {
           {relAll && filteredRel.length > 15 && (
             <button onClick={() => setRelAll(false)} className="mt-3 w-full text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-xl py-2 border border-gray-200">Réduire</button>
           )}
+        </div>
+        <DailySuggestions suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
         </div>
         )
       })()}
@@ -630,6 +637,48 @@ function PrioritiesModal({ enterprises, actions, profiles, onClose, onOpen }) {
         </div>
         <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex justify-end"><button onClick={onClose} className="btn-secondary">Fermer</button></div>
       </div>
+    </div>
+  )
+}
+
+
+// ✨ Suggestions du jour — calculées chaque nuit par le Worker (table ia_suggestions)
+function DailySuggestions({ suggestions, enterprises, profiles, scores, isDirection, profileId, navigate }) {
+  const mine = isDirection ? suggestions : suggestions.filter(s => s.profile_id === profileId)
+  const ents = Object.fromEntries(enterprises.map(e => [e.id, e]))
+  const prof = Object.fromEntries(profiles.map(p => [p.id, p.full_name]))
+  const groups = {}
+  mine.forEach(s => { (groups[s.profile_id] = groups[s.profile_id] || []).push(s) })
+  const ACTION_ICON = { 'Appeler': '📞', 'Envoyer un mail': '✉️', 'Passer sur site': '🚗', 'Envoyer des candidatures': '👥', 'Envoyer une proposition': '📄' }
+  return (
+    <div className="card p-4 sm:p-5 border-violet-200">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display font-semibold text-violet-800 text-sm">✨ {isDirection ? 'Suggestions du jour' : 'Mes suggestions du jour'}</h3>
+        <span className="text-xs text-gray-400">{formatDate(todayISO())}</span>
+      </div>
+      {mine.length === 0 ? (
+        <p className="text-sm text-gray-400 py-6 text-center">Pas encore de suggestions pour aujourd'hui — elles sont calculées chaque nuit.</p>
+      ) : Object.entries(groups).map(([pid, list]) => (
+        <div key={pid} className="mb-3 last:mb-0">
+          {isDirection && <p className="text-xs font-semibold text-gray-500 mb-1.5">{prof[pid] || '—'}</p>}
+          <div className="space-y-1.5">
+            {list.sort((a, b) => a.rank - b.rank).map(s => {
+              const e = ents[s.enterprise_id]
+              if (!e) return null
+              return (
+                <div key={s.id} onClick={() => navigate(`/entreprises/${e.id}`)} className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-violet-50/60 hover:bg-violet-50 cursor-pointer transition-colors">
+                  <span className="text-xs font-bold text-violet-700 w-4 pt-0.5">{s.rank}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate flex items-center gap-2">{e.name}{scores[e.id] && <Flames score={scores[e.id].score} size="text-xs" title={scores[e.id].reason} />}</p>
+                    <p className="text-xs text-gray-600">{s.reason}</p>
+                  </div>
+                  <span className="text-xs text-violet-700 whitespace-nowrap" title={s.suggested_action}>{ACTION_ICON[s.suggested_action] || '•'} {s.suggested_action}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

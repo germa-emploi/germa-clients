@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.21.0-démo'
+export const APP_DISPLAY_VERSION = '2.22.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.22.0-démo',
+    date: '2026-09-20',
+    changes: [
+      '✨ Suggestions du jour : à droite des relances planifiées, les 5 prospects que l\'assistant conseille de traiter aujourd\'hui à chaque commercial, avec l\'action et la raison ; calculées chaque nuit après la notation',
+    ],
+  },
   {
     version: '2.21.0-démo',
     date: '2026-09-20',
