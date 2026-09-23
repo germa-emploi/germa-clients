@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.41.0-démo'
+export const APP_DISPLAY_VERSION = '2.42.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.42.0-démo',
+    date: '2026-09-23',
+    changes: ['Reprend la prod 2.24.0 (Révision de la base — en démo, les corrections ne sont pas enregistrées)'],
+  },
   {
     version: '2.41.0-démo',
     date: '2026-09-23',
@@ -270,6 +275,15 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.24.0',
+    date: '2026-09-23',
+    changes: [
+      'Nouvelle page « Révision de la base » (direction) : compteurs et traitement des doublons probables, secteurs manquants, villes à corriger (comparées à la liste officielle des communes du 67 et du 68) et fiches incomplètes',
+      'Doublons : « Oui » ouvre directement la fusion, « Non » retire la paire ; toutes les décisions sont historisées et annulables',
+      'Chaque correction est inscrite au journal de la fiche concernée',
     ],
   },
   {
