@@ -583,6 +583,8 @@ export default {
     const origin = request.headers.get('Origin') || ''
     const headers = cors(origin, allowed)
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers })
+    // Vérification de la version déployée : ouvrir …workers.dev/version dans le navigateur
+    if (request.method === 'GET' && new URL(request.url).pathname === '/version') return new Response(JSON.stringify({ worker: 'germaclients-ia', version: WORKER_VERSION }), { status: 200, headers })
     if (request.method !== 'POST') return new Response(JSON.stringify({ error: 'POST attendu' }), { status: 405, headers })
     // Lancement manuel de la notation (test) : POST {"task":"nightly","secret":"…","hours":26,"force":["uuid",…]}
     if (new URL(request.url).pathname === '/nightly') {
@@ -692,3 +694,9 @@ export default {
     return new Response(JSON.stringify({ result, usage: data.usage, model: data.model }), { status: 200, headers })
   },
 }
+
+// ============================================================
+// VERSION DU WORKER — à incrémenter à chaque modification
+// Vérification : https://germaclients-ia.old-cake-a2b6.workers.dev/version
+// ============================================================
+const WORKER_VERSION = '1.1.0'

@@ -100,6 +100,10 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 - Notation : ~950 tokens par fiche · Suggestions du jour : ~10 000 tokens par commercial · Veille : ~13 000 tokens par nuit · Rouvrir : ~4 000 par catégorie · Urgence : ~1 800 par relance (premier passage), puis incrémental.
 - Ordre de grandeur pour GERMA (150 actions/mois, 2 commerciaux) : **6 à 7 € par mois** toutes fonctions comprises. Suivi : console Claude → API keys → colonne Cost ; plafond réglable dans Limits.
 
+## Version du Worker
+
+La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version.
+
 ## Pièges connus
 
 - Sonnet 5 refuse le paramètre `temperature` (« deprecated for this model ») : ne pas l'envoyer. La régularité du rapport mensuel repose sur la consigne et le contrôle des titres.
