@@ -1,10 +1,10 @@
-export const APP_DISPLAY_VERSION = '2.40.1-démo'
+export const APP_DISPLAY_VERSION = '2.40.2-démo'
 
 export const CHANGELOG = [
   {
-    version: '2.40.1-démo',
+    version: '2.40.2-démo',
     date: '2026-09-23',
-    changes: ['Rapport mensuel : forme identique d\'un mois à l\'autre (titres imposés et vérifiés par le serveur, rubriques toujours présentes, remarques intégrées aux rubriques existantes)', 'Impression : plus de titre seul en bas de page, plus d\'en-têtes du navigateur (about:blank, date) — pied de page GERMA sur chaque page'],
+    changes: ['Rapport mensuel : forme identique d\'un mois à l\'autre (titres imposés et vérifiés par le serveur, rubriques toujours présentes, remarques intégrées aux rubriques existantes)', 'Impression : logos GERMA en en-tête, rubriques non coupées entre deux pages, plus d\'en-têtes du navigateur (about:blank, date) — pied de page GERMA sur chaque page'],
   },
   {
     version: '2.40.0-démo',

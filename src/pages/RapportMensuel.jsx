@@ -21,16 +21,14 @@ function mdToHtml(md, { keep = false } = {}) {
   }
   const render = (b) => b.t === 'ul' ? `<ul>${b.items.map(i => `<li>${i}</li>`).join('')}</ul>` : `<${b.t}>${b.html}</${b.t}>`
   if (!keep) return blocks.map(render).join('\n')
-  // impression : chaque titre reste avec le début du bloc qui le suit (jamais seul en bas de page)
-  const out = []
-  for (let i = 0; i < blocks.length; i++) {
-    const b = blocks[i], n = blocks[i + 1]
-    if ((b.t === 'h2' || b.t === 'h3') && n) {
-      if (n.t === 'ul') { out.push(`<div class="keep">${render(b)}<ul><li>${n.items[0]}</li></ul></div>`); if (n.items.length > 1) out.push(`<ul class="cont">${n.items.slice(1).map(x => `<li>${x}</li>`).join('')}</ul>`) }
-      else out.push(`<div class="keep">${render(b)}${render(n)}</div>`)
-      i++
-    } else out.push(render(b))
+  // impression : chaque rubrique (titre ## + son contenu) forme un bloc qu'on ne coupe pas entre deux pages,
+  // sauf si elle est plus longue qu'une page (le navigateur la coupe alors, titre toujours accompagné)
+  const out = []; let open = false
+  for (const b of blocks) {
+    if (b.t === 'h2') { if (open) out.push('</section>'); out.push('<section class="rub">'); open = true }
+    out.push(render(b))
   }
+  if (open) out.push('</section>')
   return out.join('\n')
 }
 async function callWorker(path, body) {
@@ -85,17 +83,22 @@ export default function RapportMensuel() {
       h3{font-size:13px;margin:10px 0 4px}
       p{margin:5px 0}ul{margin:5px 0;padding-left:20px}ul.cont{margin-top:0}li{margin:2px 0}
       p,li{break-inside:avoid}
-      .keep{break-inside:avoid}.keep ul{margin-bottom:0}
-      h2,h3{break-after:avoid}
+      section.rub{break-inside:avoid;page-break-inside:avoid}
+      h2,h3{break-after:avoid;page-break-after:avoid}
+      .entete{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid #2D6A4F}
+      .logos{display:flex;gap:8px}.logos img{height:48px;width:auto}
       table.kpi{border-collapse:collapse;width:100%;margin:10px 0 4px;break-inside:avoid}
       table.kpi td,table.kpi th{border:1px solid #e5e7eb;padding:4px 8px;text-align:left}table.kpi th{background:#f3f4f6}
       .sub{color:#6b7280;font-size:11px;margin:0 0 6px}
     </style></head><body><table class="page"><thead><tr><td></td></tr></thead><tfoot><tr><td>GERMA Emploi — ${esc(titre)}</td></tr></tfoot><tbody><tr><td>
-      <h1>${esc(titre)}</h1><p class="sub">GERMA Emploi · généré le ${formatDateTime(rapport.generated_at)}</p>
+      <div class="entete"><div><h1>${esc(titre)}</h1><p class="sub">GERMA Emploi · généré le ${formatDateTime(rapport.generated_at)}</p></div><div class="logos"><img src="${window.location.origin}/logo_etti.jpg" alt="GERMA Emploi ETTI"><img src="${window.location.origin}/logo_ai.jpg" alt="GERMA Emploi AI"></div></div>
       <table class="kpi"><tr><th>Indicateur</th><th>${label(month)}</th><th>Mois précédent</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] ?? '—'}</td><td>${r[2] ?? '—'}</td></tr>`).join('')}</table>
       ${mdToHtml(rapport.content, { keep: true })}
     </td></tr></tbody></table></body></html>`)
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 300)
+    w.document.close(); w.focus()
+    // imprimer seulement quand les logos sont chargés
+    const imgs = [...w.document.images]
+    Promise.all(imgs.map(img => img.complete ? 1 : new Promise(r => { img.onload = r; img.onerror = r }))).then(() => setTimeout(() => w.print(), 150))
   }
 
   const s = rapport?.stats?.chiffres, p = rapport?.stats?.chiffres_mois_precedent
