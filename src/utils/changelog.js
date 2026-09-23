@@ -1,6 +1,15 @@
-export const APP_DISPLAY_VERSION = '2.23.1'
+export const APP_DISPLAY_VERSION = '2.24.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.24.0',
+    date: '2026-09-23',
+    changes: [
+      'Nouvelle page « Révision de la base » (direction) : compteurs et traitement des doublons probables, secteurs manquants, villes à corriger (comparées à la liste officielle des communes du 67 et du 68) et fiches incomplètes',
+      'Doublons : « Oui » ouvre directement la fusion, « Non » retire la paire ; toutes les décisions sont historisées et annulables',
+      'Chaque correction est inscrite au journal de la fiche concernée',
+    ],
+  },
   {
     version: '2.23.1',
     date: '2026-09-23',

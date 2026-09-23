@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import {
@@ -37,6 +37,9 @@ export default function EnterpriseDetail() {
   const [editingInterlocuteur, setEditingInterlocuteur] = useState(null)
   const [showProposition, setShowProposition] = useState(false)
   const [showFusion, setShowFusion] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const fusionTarget = searchParams.get('fusion')
+  useEffect(() => { if (fusionTarget) setShowFusion(true) }, [fusionTarget])
 
   useEffect(() => { loadData() }, [id])
 
@@ -323,7 +326,7 @@ export default function EnterpriseDetail() {
       {showAddInterlocuteur && <AddInterlocuteurModal enterpriseId={id} onClose={() => setShowAddInterlocuteur(false)} onCreated={() => { setShowAddInterlocuteur(false); loadData() }} />}
       {editingInterlocuteur && <EditInterlocuteurModal inter={editingInterlocuteur} onClose={() => setEditingInterlocuteur(null)} onSaved={() => { setEditingInterlocuteur(null); loadData() }} />}
       {showProposition && <PropositionModal enterprise={enterprise} profileId={profile.id} onClose={() => setShowProposition(false)} onSaved={() => { setShowProposition(false); loadData() }} />}
-      {showFusion && <FusionModal enterprise={enterprise} profiles={profiles} sectors={sectors} userId={profile.id} onClose={() => setShowFusion(false)} onDone={() => { setShowFusion(false); loadData() }} navigate={navigate} />}
+      {showFusion && <FusionModal enterprise={enterprise} profiles={profiles} sectors={sectors} userId={profile.id} preselectId={fusionTarget} onClose={() => { setShowFusion(false); if (fusionTarget) setSearchParams({}) }} onDone={() => { setShowFusion(false); loadData() }} navigate={navigate} />}
       {showReclasserModal && <ReclasserModal enterprise={enterprise} userId={profile.id} onClose={() => setShowReclasserModal(false)} onDone={() => { setShowReclasserModal(false); loadData() }} />}
     </div>
   )
@@ -661,7 +664,7 @@ function PropositionModal({ enterprise, profileId, onClose, onSaved }) {
 }
 
 // ===================== FUSION MODAL =====================
-function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, navigate }) {
+function FusionModal({ enterprise, profiles, sectors, userId, preselectId, onClose, onDone, navigate }) {
   const [step, setStep] = useState(1) // 1=search, 2=diff, 3=executing
   const [searchTerm, setSearchTerm] = useState('')
   const [searchResults, setSearchResults] = useState([])
@@ -699,6 +702,8 @@ function FusionModal({ enterprise, profiles, sectors, userId, onClose, onDone, n
     diffFields.forEach(f => { init[f] = oldest[f] ?? '' })
     setChoices(init)
   }
+  // ouverture depuis la révision de la base : l'autre fiche est déjà choisie
+  useEffect(() => { if (preselectId) selectEnterprise({ id: preselectId }) }, [preselectId])
 
   const diffFields = [
     { key: 'name', label: 'Nom' },
