@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.22.1'
+export const APP_DISPLAY_VERSION = '2.23.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.23.0',
+    date: '2026-09-23',
+    changes: [
+      'Sécurité : droits d\'accès contrôlés par la base selon le rôle (suppressions et gestion des comptes réservées à la direction, actions modifiables par leur auteur, journal d\'audit non modifiable, rôle non modifiable par l\'intéressé)',
+      'Sécurité : inscriptions publiques fermées ; les comptes sont créés par le serveur, uniquement par la direction depuis l\'Admin (8 caractères minimum pour le mot de passe) ; un compte qui naîtrait hors de ce circuit est inactif',
+    ],
+  },
   {
     version: '2.22.1',
     date: '2026-09-20',

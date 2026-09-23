@@ -12,7 +12,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from 'recharts'
 import * as XLSX from 'xlsx'
-import { isHiddenAccount } from '../utils/constants'
+import { isHiddenAccount, API_WORKER_URL } from '../utils/constants'
 
 export default function Admin() {
   const [tab, setTab] = useState('users')
@@ -114,8 +114,15 @@ function CreateUserModal({ onClose, onCreated }) {
   const [saving, setSaving] = useState(false); const [error, setError] = useState('')
   async function handleSubmit(e) {
     e.preventDefault(); setSaving(true); setError('')
-    const { error: err } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName, role } } })
-    if (err) { setError(err.message); setSaving(false); return }
+    // Création par le serveur (clé de service) : les inscriptions publiques sont fermées dans Supabase
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) { setError('Session expirée, reconnectez-vous'); setSaving(false); return }
+    let res
+    try {
+      const r = await fetch(`${API_WORKER_URL}/admin/create-user`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ email, password, full_name: fullName, role }) })
+      res = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(res.error || `Erreur ${r.status}`); setSaving(false); return }
+    } catch (e) { setError('Serveur injoignable : ' + e.message); setSaving(false); return }
     onCreated()
   }
   return (

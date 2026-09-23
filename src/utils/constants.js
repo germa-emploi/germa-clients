@@ -78,3 +78,6 @@ export function performedAtFromDate(dateStr, previous) {
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d, 12, 0, 0).toISOString()
 }
+
+// Serveur (Worker Cloudflare) : création de comptes réservée à la direction, fonctions IA
+export const API_WORKER_URL = 'https://germaclients-ia.old-cake-a2b6.workers.dev'
