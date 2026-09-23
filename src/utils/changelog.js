@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.40.2-démo'
+export const APP_DISPLAY_VERSION = '2.41.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.41.0-démo',
+    date: '2026-09-23',
+    changes: ['Page Nouveautés démo : section « À l\'étude » présentant quatre pistes non développées (rapport par mail, point du lundi, campagne de mailing, tournée terrain), avec coût indicatif'],
+  },
   {
     version: '2.40.2-démo',
     date: '2026-09-23',

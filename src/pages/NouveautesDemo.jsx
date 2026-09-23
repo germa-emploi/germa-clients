@@ -31,6 +31,14 @@ const ITEMS = [
     why: 'Des relances planifiées systématiquement, sans calcul de date.', mois: '0,10 €', an: '1,20 €', base: '~80 relances par mois' },
 ]
 
+// Pistes présentées au comité, non développées : section distincte « À l'étude »
+const ETUDE = [
+  { title: 'Rapport mensuel envoyé par mail', what: 'Le 1er du mois, le rapport arrive directement dans la boîte de la direction, avec les chiffres clés et un lien vers l\'appli.', why: 'Plus besoin d\'aller le chercher.', cout: 'gratuit (service d\'envoi français, offre gratuite)' },
+  { title: 'Le point du lundi par mail', what: 'Chaque lundi matin, chaque commercial reçoit ses relances de la semaine, ses suggestions et ses dossiers qui refroidissent ; la direction reçoit la synthèse de l\'équipe.', why: 'Ramener l\'équipe dans l\'outil sans qu\'elle ait à y penser.', cout: '≈ 0,50 € / mois' },
+  { title: 'Campagne de mailing personnalisée', what: 'Sur une liste filtrée (par exemple les vignerons intéressés en 2026), l\'assistant rédige un mail adapté à chaque entreprise d\'après son historique ; le commercial relit en série et envoie.', why: 'Préparer une campagne saisonnière (vendanges 2027) en une matinée.', cout: '≈ 0,50 € par campagne de 100 mails' },
+  { title: 'Tournée terrain', what: 'À partir d\'une commune et d\'une date, l\'appli propose les prospects chauds et les relances dues dans un rayon de 15 km, dans un ordre de passage logique, avec une carte.', why: 'Rentabiliser les déplacements de prospection.', cout: 'gratuit (sans IA)' },
+]
+
 export default function NouveautesDemo() {
   return (
     <div className="space-y-6 animate-fade-in max-w-3xl">
@@ -57,6 +65,26 @@ export default function NouveautesDemo() {
           </div>
         ))}
       </div>
+      <div className="pt-4">
+        <h2 className="font-display font-semibold text-lg text-gray-900">À l'étude</h2>
+        <p className="text-gray-500 text-sm mt-1">Pistes identifiées, non développées à ce jour. Coûts donnés à titre indicatif.</p>
+      </div>
+      <div className="grid gap-3">
+        {ETUDE.map(it => (
+          <div key={it.title} className="rounded-2xl border-2 border-dashed border-gray-200 bg-white/60 p-4 flex gap-4">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap"><h3 className="font-display font-semibold text-gray-800">{it.title}</h3><span className="text-[10px] font-semibold uppercase tracking-wide text-amber-800 bg-amber-100 rounded-md px-1.5 py-0.5">À l'étude</span></div>
+              <p className="text-sm text-gray-600 mt-1.5">{it.what}</p>
+              <p className="text-sm text-gray-500 mt-1 italic">→ {it.why}</p>
+            </div>
+            <div className="flex-shrink-0 text-right pl-2 border-l border-dashed border-gray-200 min-w-[96px]">
+              <p className="text-[11px] uppercase tracking-wide text-gray-400">Coût indicatif</p>
+              <p className="text-sm text-gray-700">{it.cout}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
       <div className="card p-5 bg-violet-50 border-violet-200 text-sm text-violet-900 space-y-1">
         <p><span className="font-semibold">Total estimé : environ 6,50 € par mois, 75 € par an</span>, pour toute l'équipe — calculé sur l'activité réelle (150 actions par mois) et les consommations mesurées pendant la démo. Le budget peut être plafonné sur le compte API.</p>
         <p>Les données restent dans la base GERMA ; seul le contexte de la fiche concernée est envoyé à l'IA au moment du calcul, sans conservation de son côté.</p>
