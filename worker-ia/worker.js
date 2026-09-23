@@ -439,7 +439,7 @@ async function authenticate(env, request) {
   const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` } })
   if (!r.ok) return { error: 'Session invalide ou expirée', status: 401 }
   const user = await r.json()
-  const prof = await sb(env, `profiles?select=id,full_name,is_active&id=eq.${user.id}`, { headers: { Prefer: '' } })
+  const prof = await sb(env, `profiles?select=id,full_name,is_active,role&id=eq.${user.id}`, { headers: { Prefer: '' } })
   if (!prof?.[0]?.is_active) return { error: 'Compte inactif', status: 403 }
   return { user: prof[0] }
 }
@@ -503,6 +503,27 @@ export default {
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (!allowed.includes(origin)) return new Response(JSON.stringify({ error: 'Origine non autorisée' }), { status: 403, headers })
+
+    // ---------- Création de compte (réservée à la direction ; les inscriptions publiques sont fermées dans Supabase) ----------
+    if (new URL(request.url).pathname === '/admin/create-user') {
+      const who = await authenticate(env, request)
+      if (who.error) return new Response(JSON.stringify({ error: who.error }), { status: who.status, headers })
+      if (who.user.role !== 'direction') return new Response(JSON.stringify({ error: 'Réservé à la direction' }), { status: 403, headers })
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      const email = String(b.email || '').trim().toLowerCase(), fullName = String(b.full_name || '').trim(), password = String(b.password || ''), role = String(b.role || 'commercial')
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return new Response(JSON.stringify({ error: 'Adresse e-mail invalide' }), { status: 400, headers })
+      if (!fullName) return new Response(JSON.stringify({ error: 'Nom obligatoire' }), { status: 400, headers })
+      if (password.length < 8) return new Response(JSON.stringify({ error: 'Mot de passe : 8 caractères minimum' }), { status: 400, headers })
+      if (!['commercial', 'direction', 'autre'].includes(role)) return new Response(JSON.stringify({ error: 'Rôle invalide' }), { status: 400, headers })
+      const r = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users`, { method: 'POST', headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { full_name: fullName } }) })
+      const created = await r.json().catch(() => ({}))
+      if (!r.ok || !created?.id) return new Response(JSON.stringify({ error: created?.msg || created?.message || created?.error_description || `Création refusée (${r.status})` }), { status: r.status === 422 ? 409 : 502, headers })
+      // le profil a été créé inactif par le trigger handle_new_user : on l'active avec le rôle choisi
+      await sb(env, `profiles?id=eq.${created.id}`, { method: 'PATCH', body: JSON.stringify({ is_active: true, role, full_name: fullName, must_change_password: true }) })
+      await sb(env, 'activity_log', { method: 'POST', body: JSON.stringify({ activity_type: 'user_created', performed_by: who.user.id, target_type: 'user', target_id: created.id, target_name: fullName, details: `Rôle : ${role} — créé via le serveur` }) })
+      return new Response(JSON.stringify({ ok: true, id: created.id }), { status: 200, headers })
+    }
+
     if (!env.ANTHROPIC_API_KEY) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY manquante' }), { status: 500, headers })
     const who = await authenticate(env, request)
     if (who.error) return new Response(JSON.stringify({ error: who.error }), { status: who.status, headers })
