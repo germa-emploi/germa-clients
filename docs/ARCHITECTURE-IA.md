@@ -21,6 +21,7 @@ Cron 0 1 * * * (UTC)  ────────────────►  sched
 | `SUPABASE_URL` | Text | `https://zlrqwstsahrlghhvfaob.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | Secret | clé `service_role` Supabase (tous droits — ne vit que là) |
 | `CRON_SECRET` | Secret | mot de passe des commandes manuelles |
+| `AI_DAILY_LIMIT` | Text (optionnel) | plafond de demandes IA par personne et par jour (défaut 150) |
 | `MODEL` | Text (optionnel) | modèle Claude ; défaut `claude-sonnet-5` |
 | `ALLOWED_ORIGINS` | Text (optionnel) | origines CORS, séparées par des virgules |
 
@@ -35,6 +36,10 @@ Cron : `0 1 * * *` (1 h UTC = 3 h Paris en été, 2 h en hiver).
 5. **Conseil sur les relances** (`urgenceRelances`) — toutes les relances datées (retard et à venir, clients compris) : urgence 0-3 + moyen conseillé + raison → `ia_urgences`. Recalcul seulement si la fiche a bougé ou après 7 jours ; purge des relances disparues.
    - Niveaux : 3 = urgent 🏃🏃🏃 · 2 = à faire 🏃🏃 · 1 = peut attendre 🏃 · 0 = **à solder** 🧹 (la relance n'a plus de sens — besoin passé, pas de besoin, refus implicite, contact obsolète : enregistrer un « Sans suite » plutôt que rappeler).
    - Moyens : Appeler · Envoyer un mail · Passer sur site · Envoyer des candidatures · Envoyer une proposition · **Aucune action pour l'instant** ⏸️ (relance future déjà programmée, rien à faire avant).
+
+## Création de comptes (utilisée par la prod)
+
+`POST /admin/create-user` avec le jeton de session d'un compte **direction** actif : crée l'utilisateur par l'API d'administration Supabase (clé de service), active son profil avec le rôle choisi, journalise. Les inscriptions publiques sont fermées dans Supabase.
 
 ## Tâches à la demande (depuis le site)
 
@@ -84,6 +89,11 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 
 - Notation : ~950 tokens par fiche · Suggestions du jour : ~10 000 tokens par commercial · Veille : ~13 000 tokens par nuit · Rouvrir : ~4 000 par catégorie · Urgence : ~1 800 par relance (premier passage), puis incrémental.
 - Ordre de grandeur pour GERMA (150 actions/mois, 2 commerciaux) : **6 à 7 € par mois** toutes fonctions comprises. Suivi : console Claude → API keys → colonne Cost ; plafond réglable dans Limits.
+
+## Chantiers à venir (Worker)
+
+- **Séparer** un petit Worker « administration » (création de comptes, stable) du Worker IA (qui évolue souvent) : aujourd'hui, un déploiement raté de la partie IA couperait aussi la création de comptes en prod.
+- **Déployer depuis GitHub** (Workers Builds) au lieu du copier-coller dans l'éditeur Cloudflare, pour que le code en ligne soit toujours celui du repo.
 
 ## Passage en prod d'une fonction IA (procédure)
 
