@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.38.0-démo'
+export const APP_DISPLAY_VERSION = '2.39.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.39.0-démo',
+    date: '2026-09-23',
+    changes: ['Reprend la prod 2.23.0 (sécurité : droits d\'accès par rôle, inscriptions fermées, comptes créés par le serveur)'],
+  },
   {
     version: '2.38.0-démo',
     date: '2026-09-20',
@@ -243,6 +248,19 @@ export const CHANGELOG = [
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
+  },
+  {
+    version: '2.23.0',
+    date: '2026-09-23',
+    changes: [
+      'Sécurité : droits d\'accès contrôlés par la base selon le rôle (suppressions et gestion des comptes réservées à la direction, actions modifiables par leur auteur, journal d\'audit non modifiable, rôle non modifiable par l\'intéressé)',
+      'Sécurité : inscriptions publiques fermées ; les comptes sont créés par le serveur, uniquement par la direction depuis l\'Admin (8 caractères minimum pour le mot de passe) ; un compte qui naîtrait hors de ce circuit est inactif',
+    ],
+  },
+  {
+    version: '2.22.1',
+    date: '2026-09-20',
+    changes: ['Tableau de bord : badge vert « Client » sur les relances qui concernent un client, pour les distinguer de la prospection'],
   },
   {
     version: '2.22.0',
