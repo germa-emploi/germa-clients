@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.39.0-démo'
+export const APP_DISPLAY_VERSION = '2.39.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.39.1-démo',
+    date: '2026-09-23',
+    changes: ['Reprend la prod 2.23.1 (bibliothèque Excel mise à jour)'],
+  },
   {
     version: '2.39.0-démo',
     date: '2026-09-23',
@@ -248,6 +253,11 @@ export const CHANGELOG = [
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
+  },
+  {
+    version: '2.23.1',
+    date: '2026-09-23',
+    changes: ['Sécurité : bibliothèque Excel (SheetJS) mise à jour en 0.20.3, qui corrige deux failles connues de la version précédente'],
   },
   {
     version: '2.23.0',
