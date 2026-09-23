@@ -37,6 +37,13 @@ Cron : `0 1 * * *` (1 h UTC = 3 h Paris en été, 2 h en hiver).
    - Niveaux : 3 = urgent 🏃🏃🏃 · 2 = à faire 🏃🏃 · 1 = peut attendre 🏃 · 0 = **à solder** 🧹 (la relance n'a plus de sens — besoin passé, pas de besoin, refus implicite, contact obsolète : enregistrer un « Sans suite » plutôt que rappeler).
    - Moyens : Appeler · Envoyer un mail · Passer sur site · Envoyer des candidatures · Envoyer une proposition · **Aucune action pour l'instant** ⏸️ (relance future déjà programmée, rien à faire avant).
 
+## Rapport mensuel
+
+- `POST /rapport` `{ month: 'AAAA-MM', remarques }` (direction) : `computeMonthStats` calcule les chiffres dans la base, l'assistant rédige le texte selon les consignes de `ia_rapport_config` (ou `DEFAULT_RAPPORT_CONSIGNES`), résultat archivé dans `ia_rapports`.
+- `POST /rapport/config` (direction) : `{}` lit les consignes, `{ instructions }` les enregistre, `{ reset: true }` revient aux consignes d'origine.
+- Cron : le 1er du mois (heure de Paris), génération du mois écoulé s'il n'existe pas encore.
+- Page `RapportMensuel.jsx` : chiffres affichés depuis `stats` (jamais depuis le texte), rendu Markdown minimal échappé, impression via une fenêtre dédiée.
+
 ## Création de comptes (utilisée par la prod)
 
 `POST /admin/create-user` avec le jeton de session d'un compte **direction** actif : crée l'utilisateur par l'API d'administration Supabase (clé de service), active son profil avec le rôle choisi, journalise. Les inscriptions publiques sont fermées dans Supabase.
@@ -75,6 +82,9 @@ Un appel manuel long peut dépasser le délai Cloudflare : les lots déjà trait
 | `ia_veille` | mentions (entreprise de la base) et pistes (nouveau prospect), avec `status` new/read/created/ignored | Worker ; statut modifiable par l'appli |
 | `ia_veille_vu` | URL des articles déjà analysés | Worker |
 | `ia_urgences` | urgence + moyen conseillé + raison par relance | Worker |
+| `ia_rapports` | rapports mensuels (texte + chiffres), lecture direction | Worker |
+| `ia_rapport_config` | consignes de rédaction du rapport, lecture direction | Worker |
+| `ia_usage` | compteur quotidien de demandes IA par personne | Worker |
 
 Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture pour tout compte connecté, écriture réservée à la clé service (sauf `ia_veille.status`).
 

@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History, Sparkles, Newspaper
+  History, Sparkles, Newspaper, FileText
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 import { supabase } from '../lib/supabase'
@@ -19,6 +19,7 @@ const navItems = [
 ]
 
 const adminItems = [
+  { to: '/rapport-mensuel', icon: FileText, label: 'Rapport mensuel' },
   { to: '/admin', icon: Shield, label: 'Administration' },
 ]
 

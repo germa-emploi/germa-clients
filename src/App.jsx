@@ -10,6 +10,7 @@ import Historique from './pages/Historique'
 import ActionsDuJour from './pages/ActionsDuJour'
 import NouveautesDemo from './pages/NouveautesDemo'
 import Presse from './pages/Presse'
+import RapportMensuel from './pages/RapportMensuel'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="historique" element={<Historique />} />
         <Route path="nouveautes-demo" element={<NouveautesDemo />} />
         <Route path="presse" element={<Presse />} />
+        <Route path="rapport-mensuel" element={<ProtectedRoute adminOnly><RapportMensuel /></ProtectedRoute>} />
         <Route path="actions-du-jour/:profileId" element={<ProtectedRoute adminOnly><ActionsDuJour /></ProtectedRoute>} />
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

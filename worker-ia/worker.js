@@ -68,6 +68,12 @@ Pour chacune, donne :
 Dans les textes, jamais de guillemets droits ". Traite TOUTES les lignes reçues, sans commentaire ni explication.
 Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"items": [{"id": "...", "level": 0-3, "action": "...", "why": "..."}]}`,
 
+  rapport: `Tu es l'assistant de la direction de GERMA Emploi (structure d'insertion par l'activité économique en Alsace : ETTI et association intermédiaire). Tu rédiges le rapport d'activité commerciale mensuel destiné au comité de direction, en français, en Markdown simple (titres ## et ###, listes à puces, **gras** ; pas de tableaux). On te donne les chiffres calculés dans la base (JSON), les consignes de la direction et d'éventuelles remarques pour le mois.
+Règles impératives : n'utilise QUE les chiffres fournis, ne les recalcule pas et n'en invente aucun ; cite les entreprises par leur nom quand c'est utile ; reste factuel et sobre, sans flatterie ni jugement sur les personnes ; si une donnée manque, dis-le plutôt que de supposer.
+
+CONSIGNES DE LA DIRECTION :
+{{CONSIGNES}}`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -340,6 +346,92 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
   return out
 }
 
+// ---------- Rapport mensuel ----------
+const DEFAULT_RAPPORT_CONSIGNES = `Structure du rapport, dans cet ordre :
+## Synthèse — 4 à 6 phrases : ce qui a bien marché, ce qui coince, la tendance par rapport au mois précédent.
+## Chiffres clés — commente les évolutions notables (pas besoin de tout répéter, les chiffres sont affichés à part).
+## Activité par commercial — pour chacun : volume d'actions, conversions, dossiers chauds ; factuel, sans classement ni jugement.
+## Secteurs et territoires — ce qui répond le mieux (secteurs, 67 / 68).
+## Faits marquants — clients gagnés (nommés), grosses opportunités, entreprises citées dans la presse.
+## Points d'alerte — relances en retard, dossiers chauds sans relance, qualité de saisie.
+## Pistes pour le mois suivant — 3 à 5 actions concrètes.
+Ton : professionnel, direct, phrases courtes. Longueur : une à deux pages.`
+
+async function computeMonthStats(env, month) {
+  const [y, m] = month.split('-').map(Number)
+  const start = new Date(Date.UTC(y, m - 1, 1)).toISOString(), end = new Date(Date.UTC(y, m, 1)).toISOString()
+  const pStart = new Date(Date.UTC(y, m - 2, 1)).toISOString()
+  const endDate = end.slice(0, 10)
+  const [ents, acts, profs, sectors, scores, veille] = await Promise.all([
+    sbAll(env, 'enterprises?select=id,name,city,department,sector_id,status,created_at,created_by,assigned_to,converted_at,converted_by,proposition_envoyee_at,proposition_signee_at'),
+    sbAll(env, 'actions?select=enterprise_id,performed_by,performed_at,action_type,result,next_action_date,need_identified,comments&order=performed_at.desc'),
+    sbAll(env, 'profiles?select=id,full_name,email,role,is_active'),
+    sbAll(env, 'sectors?select=id,name'),
+    sbAll(env, 'ia_scores?select=enterprise_id,score,reason'),
+    sbAll(env, `ia_veille?select=enterprise_id,company_name,title,source,url,kind,published_at,created_at&created_at=gte.${start}&created_at=lt.${end}`),
+  ])
+  const HIDDEN = ['ymonteiro@hotmail.com', 'solo6782@gmail.com']
+  const visible = new Set(profs.filter(p => !HIDDEN.includes((p.email || '').toLowerCase())).map(p => p.id))
+  const pname = Object.fromEntries(profs.map(p => [p.id, p.full_name]))
+  const sname = Object.fromEntries(sectors.map(s => [s.id, s.name]))
+  const E = Object.fromEntries(ents.map(e => [e.id, e]))
+  const inRange = (d, a, b) => d && d >= a && d < b
+  const count = (arr, f) => arr.reduce((o, x) => { const k = f(x) || 'Non renseigné'; o[k] = (o[k] || 0) + 1; return o }, {})
+  const period = (a, b) => {
+    const A = acts.filter(x => inRange(x.performed_at, a, b))
+    return {
+      actions: A.length,
+      actions_par_type: count(A, x => x.action_type),
+      actions_par_resultat: count(A, x => x.result),
+      nouvelles_entreprises: ents.filter(e => inRange(e.created_at, a, b)).length,
+      conversions: ents.filter(e => e.status === 'client' && inRange(e.converted_at, a, b)).length,
+      rdv_pris: A.filter(x => x.result === 'RDV pris').length,
+      propositions_envoyees: ents.filter(e => inRange(e.proposition_envoyee_at, a.slice(0, 10), b.slice(0, 10))).length,
+      propositions_signees: ents.filter(e => inRange(e.proposition_signee_at, a.slice(0, 10), b.slice(0, 10))).length,
+      entreprises_contactees: new Set(A.map(x => x.enterprise_id)).size,
+    }
+  }
+  const cur = period(start, end), prev = period(pStart, start)
+  const A = acts.filter(x => inRange(x.performed_at, start, end))
+  // par commercial
+  const parCommercial = [...visible].map(id => {
+    const mine = A.filter(x => x.performed_by === id)
+    const conv = ents.filter(e => e.status === 'client' && inRange(e.converted_at, start, end) && (e.converted_by === id || e.assigned_to === id))
+    const chauds = ents.filter(e => e.assigned_to === id && e.status === 'prospect' && (scores.find(s => s.enterprise_id === e.id)?.score || 0) >= 4)
+    return { commercial: pname[id], actions: mine.length, par_type: count(mine, x => x.action_type), rdv: mine.filter(x => x.result === 'RDV pris').length, conversions: conv.map(e => e.name), nouvelles_entreprises: ents.filter(e => e.created_by === id && inRange(e.created_at, start, end)).length, prospects_chauds_4_5: chauds.length }
+  }).filter(c => c.actions || c.conversions.length || c.nouvelles_entreprises)
+  // secteurs & départements
+  const parSecteur = count(A, x => sname[E[x.enterprise_id]?.sector_id])
+  const parDept = count(A, x => E[x.enterprise_id]?.department)
+  const convParSecteur = count(ents.filter(e => e.status === 'client' && inRange(e.converted_at, start, end)), e => sname[e.sector_id])
+  // relances en retard à la fin du mois (dernière action connue à cette date)
+  const last = {}
+  acts.forEach(a => { if (a.performed_at < end && !last[a.enterprise_id]) last[a.enterprise_id] = a })
+  const retard = Object.values(last).filter(a => a.result === 'À relancer' && a.next_action_date && a.next_action_date < endDate)
+  // faits marquants
+  const clientsGagnes = ents.filter(e => e.status === 'client' && inRange(e.converted_at, start, end)).map(e => ({ nom: e.name, ville: e.city, commercial: pname[e.converted_by] || pname[e.assigned_to] || '—' }))
+  const chauds = scores.filter(s => s.score >= 4 && E[s.enterprise_id]?.status === 'prospect').map(s => ({ nom: E[s.enterprise_id].name, chaleur: s.score, raison: s.reason, commercial: pname[E[s.enterprise_id].assigned_to] || '—' })).slice(0, 12)
+  const chaudsSansRelance = scores.filter(s => s.score >= 4 && E[s.enterprise_id]?.status === 'prospect' && !(last[s.enterprise_id]?.next_action_date >= endDate)).map(s => E[s.enterprise_id].name).slice(0, 10)
+  const presse = veille.filter(v => v.kind === 'mention').map(v => ({ entreprise: v.company_name, titre: v.title, source: v.source })).slice(0, 10)
+  const pistes = veille.filter(v => v.kind === 'piste').length
+  const qualite = { actions_sans_commentaire: A.filter(x => !(x.comments || '').trim()).length, besoin_identifie_coche: A.filter(x => x.need_identified).length, entreprises_sans_commercial: ents.filter(e => !e.assigned_to).length }
+  return { mois: month, mois_precedent: pStart.slice(0, 7), chiffres: cur, chiffres_mois_precedent: prev, par_commercial: parCommercial, actions_par_secteur: parSecteur, actions_par_departement: parDept, conversions_par_secteur: convParSecteur, relances_en_retard_fin_de_mois: retard.length, clients_gagnes: clientsGagnes, prospects_chauds: chauds, prospects_chauds_sans_relance: chaudsSansRelance, presse_mentions: presse, pistes_presse_detectees: pistes, qualite_saisie: qualite }
+}
+
+async function generateRapport(env, { month, remarques = '', by = null } = {}) {
+  const cfg = await sb(env, 'ia_rapport_config?select=instructions&id=eq.1', { headers: { Prefer: '' } })
+  const consignes = (cfg?.[0]?.instructions || '').trim() || DEFAULT_RAPPORT_CONSIGNES
+  const stats = await computeMonthStats(env, month)
+  const ctx = `Mois : ${month}\nChiffres (JSON) :\n${JSON.stringify(stats)}\n${remarques ? `\nRemarques de la direction pour ce mois : ${remarques}` : ''}`
+  const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, system: SYSTEM.rapport.replace('{{CONSIGNES}}', consignes), messages: [{ role: 'user', content: ctx }] }) })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
+  const content = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim()
+  if (!content) throw new Error('Réponse vide')
+  await sb(env, 'ia_rapports', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ month, content, stats, remarques: remarques || null, model: data.model, generated_at: new Date().toISOString(), generated_by: by }) })
+  return { month, tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) }
+}
+
 // ---------- Relances suggérées des « Sans suite » et « Refus » ----------
 async function reopenSuggestions(env, { date } = {}) {
   const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
@@ -462,6 +554,13 @@ export default {
       const r3 = await veille(env); console.log('Veille presse :', JSON.stringify(r3))
       const r4 = await reopenSuggestions(env); console.log('Relances sans suite / refus :', JSON.stringify(r4))
       const r5 = await urgenceRelances(env); console.log('Urgence des relances :', JSON.stringify(r5))
+      const paris = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
+      if (paris.getDate() === 1) {
+        const prevMonth = new Date(paris.getFullYear(), paris.getMonth() - 1, 1)
+        const mm = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
+        const exists = await sb(env, `ia_rapports?select=month&month=eq.${mm}`, { headers: { Prefer: '' } })
+        if (!exists?.length) { const r6 = await generateRapport(env, { month: mm }); console.log('Rapport mensuel :', JSON.stringify(r6)) }
+      }
     })())
   },
 
@@ -503,6 +602,29 @@ export default {
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (!allowed.includes(origin)) return new Response(JSON.stringify({ error: 'Origine non autorisée' }), { status: 403, headers })
+
+    // ---------- Rapport mensuel (direction) : génération et consignes ----------
+    if (['/rapport', '/rapport/config'].includes(new URL(request.url).pathname)) {
+      const who = await authenticate(env, request)
+      if (who.error) return new Response(JSON.stringify({ error: who.error }), { status: who.status, headers })
+      if (who.user.role !== 'direction') return new Response(JSON.stringify({ error: 'Réservé à la direction' }), { status: 403, headers })
+      let b = {}; try { b = await request.json() } catch { /* vide */ }
+      try {
+        if (new URL(request.url).pathname === '/rapport/config') {
+          if (b.reset) { await sb(env, 'ia_rapport_config', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ id: 1, instructions: DEFAULT_RAPPORT_CONSIGNES, updated_at: new Date().toISOString(), updated_by: who.user.id }) }); return new Response(JSON.stringify({ ok: true, instructions: DEFAULT_RAPPORT_CONSIGNES }), { status: 200, headers }) }
+          if (typeof b.instructions === 'string') {
+            if (b.instructions.length > 8000) return new Response(JSON.stringify({ error: 'Consignes trop longues (8 000 caractères max)' }), { status: 413, headers })
+            await sb(env, 'ia_rapport_config', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ id: 1, instructions: b.instructions, updated_at: new Date().toISOString(), updated_by: who.user.id }) })
+            return new Response(JSON.stringify({ ok: true }), { status: 200, headers })
+          }
+          const cfg = await sb(env, 'ia_rapport_config?select=instructions,updated_at&id=eq.1', { headers: { Prefer: '' } })
+          return new Response(JSON.stringify({ instructions: cfg?.[0]?.instructions || DEFAULT_RAPPORT_CONSIGNES, updated_at: cfg?.[0]?.updated_at || null }), { status: 200, headers })
+        }
+        if (!/^\d{4}-\d{2}$/.test(String(b.month || ''))) return new Response(JSON.stringify({ error: 'Mois invalide (AAAA-MM)' }), { status: 400, headers })
+        const res = await generateRapport(env, { month: b.month, remarques: String(b.remarques || '').slice(0, 3000), by: who.user.id })
+        return new Response(JSON.stringify(res), { status: 200, headers })
+      } catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
 
     // ---------- Création de compte (réservée à la direction ; les inscriptions publiques sont fermées dans Supabase) ----------
     if (new URL(request.url).pathname === '/admin/create-user') {

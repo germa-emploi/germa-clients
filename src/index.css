@@ -76,3 +76,11 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+/* Rapport mensuel (texte Markdown rendu) */
+.rapport-md h2 { font-family: var(--font-display, inherit); font-weight: 600; font-size: 1.05rem; color: #2D6A4F; margin: 1.2rem 0 .5rem; padding-bottom: .25rem; border-bottom: 1px solid #f3f4f6; }
+.rapport-md h2:first-child { margin-top: 0; }
+.rapport-md h3 { font-weight: 600; font-size: .95rem; margin: .8rem 0 .3rem; color: #111827; }
+.rapport-md p { font-size: .9rem; color: #374151; margin: .35rem 0; line-height: 1.55; }
+.rapport-md ul { list-style: disc; padding-left: 1.25rem; margin: .35rem 0; }
+.rapport-md li { font-size: .9rem; color: #374151; margin: .15rem 0; }

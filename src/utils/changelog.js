@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.39.1-démo'
+export const APP_DISPLAY_VERSION = '2.40.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.40.0-démo',
+    date: '2026-09-23',
+    changes: [
+      '✨ Rapport mensuel (menu direction) : rédigé par l\'assistant le 1er de chaque mois pour le mois écoulé — synthèse, chiffres comparés au mois précédent, activité par commercial, secteurs et territoires, faits marquants, points d\'alerte, pistes',
+      'Chiffres calculés par le serveur ; remarques du mois et consignes de rédaction modifiables par la direction ; régénération à la demande ; impression / PDF',
+    ],
+  },
   {
     version: '2.39.1-démo',
     date: '2026-09-23',
