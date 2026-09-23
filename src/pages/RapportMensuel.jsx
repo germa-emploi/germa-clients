@@ -7,19 +7,30 @@ const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 
 const label = (m) => { const [y, mo] = m.split('-').map(Number); return `${MOIS[mo - 1]} ${y}` }
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 // Markdown minimal (titres, listes, gras) → HTML, contenu échappé au préalable
-function mdToHtml(md) {
-  const out = []; let list = false
+function mdToHtml(md, { keep = false } = {}) {
+  // découpe en blocs (titre, paragraphe, liste)
+  const blocks = []; let list = null
   for (const raw of String(md || '').split('\n')) {
     const line = esc(raw).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     const li = line.match(/^\s*[-*]\s+(.*)$/)
-    if (li) { if (!list) { out.push('<ul>'); list = true } out.push(`<li>${li[1]}</li>`); continue }
-    if (list) { out.push('</ul>'); list = false }
-    if (/^###\s+/.test(line)) out.push(`<h3>${line.replace(/^###\s+/, '')}</h3>`)
-    else if (/^##\s+/.test(line)) out.push(`<h2>${line.replace(/^##\s+/, '')}</h2>`)
-    else if (/^#\s+/.test(line)) out.push(`<h2>${line.replace(/^#\s+/, '')}</h2>`)
-    else if (line.trim()) out.push(`<p>${line}</p>`)
+    if (li) { if (!list) { list = []; blocks.push({ t: 'ul', items: list }) } list.push(li[1]); continue }
+    list = null
+    if (/^###\s+/.test(line)) blocks.push({ t: 'h3', html: line.replace(/^###\s+/, '') })
+    else if (/^#{1,2}\s+/.test(line)) blocks.push({ t: 'h2', html: line.replace(/^#{1,2}\s+/, '') })
+    else if (line.trim()) blocks.push({ t: 'p', html: line })
   }
-  if (list) out.push('</ul>')
+  const render = (b) => b.t === 'ul' ? `<ul>${b.items.map(i => `<li>${i}</li>`).join('')}</ul>` : `<${b.t}>${b.html}</${b.t}>`
+  if (!keep) return blocks.map(render).join('\n')
+  // impression : chaque titre reste avec le début du bloc qui le suit (jamais seul en bas de page)
+  const out = []
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i], n = blocks[i + 1]
+    if ((b.t === 'h2' || b.t === 'h3') && n) {
+      if (n.t === 'ul') { out.push(`<div class="keep">${render(b)}<ul><li>${n.items[0]}</li></ul></div>`); if (n.items.length > 1) out.push(`<ul class="cont">${n.items.slice(1).map(x => `<li>${x}</li>`).join('')}</ul>`) }
+      else out.push(`<div class="keep">${render(b)}${render(n)}</div>`)
+      i++
+    } else out.push(render(b))
+  }
   return out.join('\n')
 }
 async function callWorker(path, body) {
@@ -59,7 +70,31 @@ export default function RapportMensuel() {
     const w = window.open('', '_blank'); if (!w) return
     const s = rapport.stats?.chiffres || {}, p = rapport.stats?.chiffres_mois_precedent || {}
     const rows = [['Actions', s.actions, p.actions], ['Entreprises contactées', s.entreprises_contactees, p.entreprises_contactees], ['Nouvelles entreprises', s.nouvelles_entreprises, p.nouvelles_entreprises], ['Conversions', s.conversions, p.conversions], ['RDV pris', s.rdv_pris, p.rdv_pris], ['Propositions envoyées', s.propositions_envoyees, p.propositions_envoyees], ['Relances en retard (fin de mois)', rapport.stats?.relances_en_retard_fin_de_mois, '—']]
-    w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Rapport ${label(month)} — GERMA Emploi</title><style>body{font-family:Arial,sans-serif;color:#1f2937;max-width:780px;margin:32px auto;line-height:1.5;font-size:13px}h1{font-size:22px;margin:0}h2{font-size:16px;color:#2D6A4F;margin-top:22px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}h3{font-size:14px}table{border-collapse:collapse;width:100%;margin:12px 0}td,th{border:1px solid #e5e7eb;padding:5px 8px;text-align:left}th{background:#f3f4f6}.sub{color:#6b7280;font-size:12px}</style></head><body><h1>Rapport d'activité commerciale — ${label(month)}</h1><p class="sub">GERMA Emploi · généré le ${formatDateTime(rapport.generated_at)}</p><table><tr><th>Indicateur</th><th>${label(month)}</th><th>Mois précédent</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] ?? '—'}</td><td>${r[2] ?? '—'}</td></tr>`).join('')}</table>${mdToHtml(rapport.content)}</body></html>`)
+    const titre = `Rapport d'activité commerciale — ${label(month)}`
+    // @page sans marge = plus d'en-têtes/pieds du navigateur (about:blank, date) ; les marges sont recréées
+    // par les lignes d'en-tête/pied du tableau de mise en page, répétées sur chaque page imprimée.
+    w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(titre)} — GERMA Emploi</title><style>
+      @page{size:A4;margin:0}
+      body{font-family:Arial,sans-serif;color:#1f2937;line-height:1.5;font-size:12.5px;margin:0}
+      table.page{width:100%;border-collapse:collapse}
+      table.page>thead td{height:14mm}
+      table.page>tfoot td{height:16mm;vertical-align:bottom;padding:0 18mm 7mm;font-size:10px;color:#6b7280}
+      table.page>tbody>tr>td{padding:0 18mm}
+      h1{font-size:21px;margin:0 0 2px}
+      h2{font-size:15px;color:#2D6A4F;margin:18px 0 6px;border-bottom:1px solid #e5e7eb;padding-bottom:3px}
+      h3{font-size:13px;margin:10px 0 4px}
+      p{margin:5px 0}ul{margin:5px 0;padding-left:20px}ul.cont{margin-top:0}li{margin:2px 0}
+      p,li{break-inside:avoid}
+      .keep{break-inside:avoid}.keep ul{margin-bottom:0}
+      h2,h3{break-after:avoid}
+      table.kpi{border-collapse:collapse;width:100%;margin:10px 0 4px;break-inside:avoid}
+      table.kpi td,table.kpi th{border:1px solid #e5e7eb;padding:4px 8px;text-align:left}table.kpi th{background:#f3f4f6}
+      .sub{color:#6b7280;font-size:11px;margin:0 0 6px}
+    </style></head><body><table class="page"><thead><tr><td></td></tr></thead><tfoot><tr><td>GERMA Emploi — ${esc(titre)}</td></tr></tfoot><tbody><tr><td>
+      <h1>${esc(titre)}</h1><p class="sub">GERMA Emploi · généré le ${formatDateTime(rapport.generated_at)}</p>
+      <table class="kpi"><tr><th>Indicateur</th><th>${label(month)}</th><th>Mois précédent</th></tr>${rows.map(r => `<tr><td>${r[0]}</td><td>${r[1] ?? '—'}</td><td>${r[2] ?? '—'}</td></tr>`).join('')}</table>
+      ${mdToHtml(rapport.content, { keep: true })}
+    </td></tr></tbody></table></body></html>`)
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300)
   }
 

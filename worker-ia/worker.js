@@ -70,6 +70,7 @@ Réponds UNIQUEMENT avec un JSON compact sur une ligne, sans texte autour : {"it
 
   rapport: `Tu es l'assistant de la direction de GERMA Emploi (structure d'insertion par l'activité économique en Alsace : ETTI et association intermédiaire). Tu rédiges le rapport d'activité commerciale mensuel destiné au comité de direction, en français, en Markdown simple (titres ## et ###, listes à puces, **gras** ; pas de tableaux). On te donne les chiffres calculés dans la base (JSON), les consignes de la direction et d'éventuelles remarques pour le mois.
 Règles impératives : n'utilise QUE les chiffres fournis, ne les recalcule pas et n'en invente aucun ; cite les entreprises par leur nom quand c'est utile ; reste factuel et sobre, sans flatterie ni jugement sur les personnes ; si une donnée manque, dis-le plutôt que de supposer.
+FORME IDENTIQUE CHAQUE MOIS (le comité compare les rapports entre eux) : reprends les titres de rubriques ## EXACTEMENT comme dans les consignes (même libellé, sans le texte qui suit le tiret), dans le même ordre, sans en ajouter, sans en supprimer, sans titre principal (#) ni introduction avant la première rubrique ni conclusion après la dernière. Si une rubrique n'a rien à dire, écris « Rien à signaler ce mois-ci. ». Les remarques de la direction s'intègrent dans les rubriques existantes (le plus souvent Synthèse ou Faits marquants), jamais dans une rubrique à part. Garde une longueur comparable d'un mois à l'autre.
 
 CONSIGNES DE LA DIRECTION :
 {{CONSIGNES}}`,
@@ -423,13 +424,26 @@ async function generateRapport(env, { month, remarques = '', by = null } = {}) {
   const consignes = (cfg?.[0]?.instructions || '').trim() || DEFAULT_RAPPORT_CONSIGNES
   const stats = await computeMonthStats(env, month)
   const ctx = `Mois : ${month}\nChiffres (JSON) :\n${JSON.stringify(stats)}\n${remarques ? `\nRemarques de la direction pour ce mois : ${remarques}` : ''}`
-  const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, system: SYSTEM.rapport.replace('{{CONSIGNES}}', consignes), messages: [{ role: 'user', content: ctx }] }) })
-  const data = await r.json().catch(() => ({}))
-  if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
-  const content = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim()
+  // titres attendus = lignes « ## Titre — … » des consignes
+  const norm = (t) => t.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
+  const expected = consignes.split('\n').filter(l => /^\s*##\s+/.test(l)).map(l => norm(l.replace(/^\s*##\s+/, '').split(/\s+[—–-]\s+/)[0]))
+  const ask = async (messages) => {
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, temperature: 0, system: SYSTEM.rapport.replace('{{CONSIGNES}}', consignes), messages }) })
+    const data = await r.json().catch(() => ({}))
+    if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
+    return { data, content: (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim() }
+  }
+  const headingsOf = (md) => md.split('\n').filter(l => /^##\s+/.test(l)).map(l => norm(l.replace(/^##\s+/, '')))
+  const conforme = (md) => expected.length === 0 || JSON.stringify(headingsOf(md)) === JSON.stringify(expected)
+  let { data, content } = await ask([{ role: 'user', content: ctx }])
   if (!content) throw new Error('Réponse vide')
+  if (!conforme(content)) {
+    // une seule réécriture, en indiquant l'écart
+    const retry = await ask([{ role: 'user', content: ctx }, { role: 'assistant', content }, { role: 'user', content: `La structure ne respecte pas les consignes. Titres attendus, exactement et dans cet ordre : ${expected.map(t => '« ' + t + ' »').join(', ')}. Titres produits : ${headingsOf(content).map(t => '« ' + t + ' »').join(', ') || 'aucun'}. Réécris le rapport complet avec exactement ces titres ##, sans rien avant ni après.` }])
+    if (retry.content) { data = { ...retry.data, usage: { input_tokens: (data.usage?.input_tokens || 0) + (retry.data.usage?.input_tokens || 0), output_tokens: (data.usage?.output_tokens || 0) + (retry.data.usage?.output_tokens || 0) } }; content = retry.content }
+  }
   await sb(env, 'ia_rapports', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ month, content, stats, remarques: remarques || null, model: data.model, generated_at: new Date().toISOString(), generated_by: by }) })
-  return { month, tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) }
+  return { month, tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0), conforme: conforme(content) }
 }
 
 // ---------- Relances suggérées des « Sans suite » et « Refus » ----------
