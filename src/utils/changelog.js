@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.37.1-démo'
+export const APP_DISPLAY_VERSION = '2.38.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.38.0-démo',
+    date: '2026-09-20',
+    changes: [
+      'Sécurité : l\'assistant IA n\'accepte plus que les demandes d\'un utilisateur connecté et actif (jeton vérifié auprès de Supabase), limitées aux fonctions de l\'interface, avec un plafond de 150 demandes par personne et par jour',
+    ],
+  },
   {
     version: '2.37.1-démo',
     date: '2026-09-20',

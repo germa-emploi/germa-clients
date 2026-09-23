@@ -77,7 +77,7 @@ function cors(origin, allowed) {
   return {
     'Access-Control-Allow-Origin': ok ? origin : allowed[0],
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Content-Type': 'application/json; charset=utf-8',
   }
 }
@@ -424,6 +424,35 @@ async function urgenceRelances(env, { force = false } = {}) {
   return out
 }
 
+// Comparaison de secrets à temps constant
+function sameSecret(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false
+  let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i); return d === 0
+}
+// ---------- Sécurité des appels depuis le site ----------
+// Le site envoie le jeton de connexion Supabase de l'utilisateur (Authorization: Bearer …).
+// On vérifie auprès de Supabase qu'il est valide et que le compte est actif, puis on applique un plafond quotidien.
+async function authenticate(env, request) {
+  const auth = request.headers.get('Authorization') || ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  if (!token) return { error: 'Connexion requise', status: 401 }
+  const r = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, { headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` } })
+  if (!r.ok) return { error: 'Session invalide ou expirée', status: 401 }
+  const user = await r.json()
+  const prof = await sb(env, `profiles?select=id,full_name,is_active&id=eq.${user.id}`, { headers: { Prefer: '' } })
+  if (!prof?.[0]?.is_active) return { error: 'Compte inactif', status: 403 }
+  return { user: prof[0] }
+}
+async function checkQuota(env, userId) {
+  const limit = Number(env.AI_DAILY_LIMIT) || 150
+  const day = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
+  const rows = await sb(env, `ia_usage?select=calls&profile_id=eq.${userId}&day=eq.${day}`, { headers: { Prefer: '' } })
+  const calls = rows?.[0]?.calls || 0
+  if (calls >= limit) return { error: `Limite quotidienne atteinte (${limit} demandes par jour)`, status: 429 }
+  await sb(env, 'ia_usage', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ profile_id: userId, day, calls: calls + 1 }) })
+  return { ok: true }
+}
+
 export default {
   // Déclencheur planifié (Cloudflare → Settings → Triggers → Cron) : notation des fiches modifiées dans la journée
   async scheduled(event, env, ctx) {
@@ -445,41 +474,47 @@ export default {
     // Lancement manuel de la notation (test) : POST {"task":"nightly","secret":"…","hours":26,"force":["uuid",…]}
     if (new URL(request.url).pathname === '/nightly') {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
-      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      if (!env.CRON_SECRET || !sameSecret(b.secret, env.CRON_SECRET)) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await nightlyScoring(env, { hours: b.hours ?? 26, limit: b.limit || 150, force: b.force || [] })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (['/veille', '/veille-test'].includes(new URL(request.url).pathname)) {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
-      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      if (!env.CRON_SECRET || !sameSecret(b.secret, env.CRON_SECRET)) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await veille(env, { dryRun: new URL(request.url).pathname === '/veille-test', days: Number(b.days) || 0 })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/urgence') {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
-      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      if (!env.CRON_SECRET || !sameSecret(b.secret, env.CRON_SECRET)) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await urgenceRelances(env, { force: !!b.force })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/reopen') {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
-      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      if (!env.CRON_SECRET || !sameSecret(b.secret, env.CRON_SECRET)) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await reopenSuggestions(env, { date: b.date })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (new URL(request.url).pathname === '/daily') {
       let b = {}; try { b = await request.json() } catch { /* vide */ }
-      if (!env.CRON_SECRET || b.secret !== env.CRON_SECRET) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
+      if (!env.CRON_SECRET || !sameSecret(b.secret, env.CRON_SECRET)) return new Response(JSON.stringify({ error: 'Non autorisé' }), { status: 401, headers })
       try { return new Response(JSON.stringify(await dailySuggestions(env, { date: b.date, force: b.force || [] })), { status: 200, headers }) }
       catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
     }
     if (!allowed.includes(origin)) return new Response(JSON.stringify({ error: 'Origine non autorisée' }), { status: 403, headers })
     if (!env.ANTHROPIC_API_KEY) return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY manquante' }), { status: 500, headers })
+    const who = await authenticate(env, request)
+    if (who.error) return new Response(JSON.stringify({ error: who.error }), { status: who.status, headers })
+    const quota = await checkQuota(env, who.user.id)
+    if (quota.error) return new Response(JSON.stringify({ error: quota.error }), { status: quota.status, headers })
 
     let body
     try { body = await request.json() } catch { return new Response(JSON.stringify({ error: 'JSON invalide' }), { status: 400, headers }) }
     const { task, context } = body || {}
-    if (!SYSTEM[task]) return new Response(JSON.stringify({ error: 'Tâche inconnue' }), { status: 400, headers })
+    const SITE_TASKS = ['mail', 'brief', 'relance_date']
+    if (!SITE_TASKS.includes(task) || !SYSTEM[task]) return new Response(JSON.stringify({ error: 'Tâche non autorisée' }), { status: 400, headers })
+    if (typeof context === 'string' ? context.length > 30000 : JSON.stringify(context || '').length > 30000) return new Response(JSON.stringify({ error: 'Contexte trop long' }), { status: 413, headers })
 
     const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
     const system = SYSTEM[task].replace('{{TODAY}}', today)

@@ -13,7 +13,10 @@ export const AI_WORKER_URL = 'https://germaclients-ia.old-cake-a2b6.workers.dev'
 export async function aiRequest(task, context) {
   if (!AI_WORKER_URL) return null
   try {
-    const r = await fetch(AI_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ task, context }) })
+    const { supabase } = await import('../lib/supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.access_token) { console.warn('IA : pas de session'); return null }
+    const r = await fetch(AI_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ task, context }) })
     const data = await r.json()
     if (!r.ok || !data?.result || data.result.raw) { console.warn('IA:', data?.error || data?.result?.raw); return null }
     return data
