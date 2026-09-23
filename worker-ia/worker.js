@@ -75,6 +75,13 @@ FORME IDENTIQUE CHAQUE MOIS (le comité compare les rapports entre eux) : repren
 CONSIGNES DE LA DIRECTION :
 {{CONSIGNES}}`,
 
+  reunion: `Tu es l'assistant de la direction de GERMA Emploi (structure d'insertion par l'activité économique en Alsace). Tu prépares le briefing de la réunion commerciale du jour, pour la directrice qui l'anime, en français, en Markdown simple (titres ##, listes à puces, **gras** ; pas de tableaux). On te donne : les dates de la réunion précédente et de celle du jour, éventuellement le PDF du compte rendu de la réunion précédente, et les chiffres de la base sur la période (JSON), avec les dossiers en cours.
+Structure imposée, exactement ces trois rubriques dans cet ordre, sans rien avant ni après, sans ordre du jour :
+## Suivi du dernier compte rendu — pour chaque décision ou action du compte rendu (qui, quoi) : **Fait**, **En cours** ou **Pas d'élément dans la base**, avec l'élément factuel de la base qui le montre (action enregistrée, conversion, proposition…). Si aucun compte rendu n'est fourni, écris « Pas de compte rendu fourni. ».
+## Activité depuis la dernière réunion — chiffres et évolutions, clients gagnés, faits marquants, par commercial, sans jugement sur les personnes.
+## Dossiers à discuter — prospects chauds, relances urgentes, sans suite ou refus à rouvrir, points d'alerte ; nomme les entreprises et le commercial concerné.
+Règles : n'utilise que les chiffres fournis, n'en invente aucun ; ce qui vient du compte rendu doit être rapporté fidèlement ; reste factuel et sobre ; si une donnée manque, dis-le.`,
+
   priorities: `Tu es l'assistant commercial de GERMA Emploi. On te donne une liste de prospects « à relancer » avec, pour chacun, ses derniers commentaires. Classe les 10 plus prometteurs pour la semaine, note chacun de 1 à 5 étoiles selon la chaleur du prospect (besoin concret exprimé, interlocuteur identifié, relance due), et explique en une phrase pourquoi. Écarte ceux qui sont manifestement perdus ou sans besoin. Français, aucune information inventée.
 Réponds UNIQUEMENT avec un JSON : {"top": [{"id": "...", "stars": 1-5, "why": "..."}], "excluded": [{"id": "...", "why": "..."}]}`,
 }
@@ -362,6 +369,13 @@ async function computeMonthStats(env, month) {
   const [y, m] = month.split('-').map(Number)
   const start = new Date(Date.UTC(y, m - 1, 1)).toISOString(), end = new Date(Date.UTC(y, m, 1)).toISOString()
   const pStart = new Date(Date.UTC(y, m - 2, 1)).toISOString()
+  const s = await computePeriodStats(env, start, end, pStart)
+  return { mois: month, mois_precedent: pStart.slice(0, 7), ...s }
+}
+
+// Chiffres de la période [start, end[ comparés à la période [prevStart, start[
+async function computePeriodStats(env, start, end, prevStart) {
+  const pStart = prevStart
   const endDate = end.slice(0, 10)
   const [ents, acts, profs, sectors, scores, veille] = await Promise.all([
     sbAll(env, 'enterprises?select=id,name,city,department,sector_id,status,created_at,created_by,assigned_to,converted_at,converted_by,proposition_envoyee_at,proposition_signee_at'),
@@ -416,7 +430,7 @@ async function computeMonthStats(env, month) {
   const presse = veille.filter(v => v.kind === 'mention').map(v => ({ entreprise: v.company_name, titre: v.title, source: v.source })).slice(0, 10)
   const pistes = veille.filter(v => v.kind === 'piste').length
   const qualite = { actions_sans_commentaire: A.filter(x => !(x.comments || '').trim()).length, besoin_identifie_coche: A.filter(x => x.need_identified).length, entreprises_sans_commercial: ents.filter(e => !e.assigned_to).length }
-  return { mois: month, mois_precedent: pStart.slice(0, 7), chiffres: cur, chiffres_mois_precedent: prev, par_commercial: parCommercial, actions_par_secteur: parSecteur, actions_par_departement: parDept, conversions_par_secteur: convParSecteur, relances_en_retard_fin_de_mois: retard.length, clients_gagnes: clientsGagnes, prospects_chauds: chauds, prospects_chauds_sans_relance: chaudsSansRelance, presse_mentions: presse, pistes_presse_detectees: pistes, qualite_saisie: qualite }
+  return { periode: { du: start.slice(0, 10), au_exclu: endDate }, chiffres: cur, chiffres_mois_precedent: prev, par_commercial: parCommercial, actions_par_secteur: parSecteur, actions_par_departement: parDept, conversions_par_secteur: convParSecteur, relances_en_retard_fin_de_mois: retard.length, clients_gagnes: clientsGagnes, prospects_chauds: chauds, prospects_chauds_sans_relance: chaudsSansRelance, presse_mentions: presse, pistes_presse_detectees: pistes, qualite_saisie: qualite }
 }
 
 async function generateRapport(env, { month, remarques = '', by = null } = {}) {
@@ -444,6 +458,34 @@ async function generateRapport(env, { month, remarques = '', by = null } = {}) {
   }
   await sb(env, 'ia_rapports', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify({ month, content, stats, remarques: remarques || null, model: data.model, generated_at: new Date().toISOString(), generated_by: by }) })
   return { month, tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0), conforme: conforme(content) }
+}
+
+// ---------- Briefing de réunion commerciale ----------
+async function generateReunion(env, { meetingDate, previousDate, pdfBase64 = '', pdfName = '', by = null }) {
+  const start = new Date(`${previousDate}T00:00:00Z`).toISOString(), end = new Date(new Date(`${meetingDate}T00:00:00Z`).getTime() + 86400000).toISOString()
+  const len = new Date(end) - new Date(start), prevStart = new Date(new Date(start).getTime() - len).toISOString()
+  const stats = await computePeriodStats(env, start, end, prevStart)
+  // dossiers en cours : relances urgentes et suggestions de réouverture
+  const [urg, sugg, ents, profs] = await Promise.all([
+    sbAll(env, 'ia_urgences?select=enterprise_id,level,suggested_action,reason&level=eq.3'),
+    sbAll(env, `ia_suggestions?select=enterprise_id,kind,reason,date&kind=in.(sans_suite,refus)&order=date.desc&limit=20`),
+    sbAll(env, 'enterprises?select=id,name,assigned_to'),
+    sbAll(env, 'profiles?select=id,full_name'),
+  ])
+  const E = Object.fromEntries(ents.map(e => [e.id, e])), P = Object.fromEntries(profs.map(p => [p.id, p.full_name]))
+  const dossiers = {
+    relances_urgentes: urg.filter(u => E[u.enterprise_id]).slice(0, 15).map(u => ({ entreprise: E[u.enterprise_id].name, commercial: P[E[u.enterprise_id].assigned_to] || '—', action: u.suggested_action, raison: u.reason })),
+    a_rouvrir: sugg.filter(s => E[s.enterprise_id]).slice(0, 10).map(s => ({ entreprise: E[s.enterprise_id].name, type: s.kind, raison: s.reason })),
+  }
+  const content = [{ type: 'text', text: `Réunion du jour : ${meetingDate}. Réunion précédente : ${previousDate}.\nChiffres de la période (JSON) :\n${JSON.stringify(stats)}\nDossiers en cours (JSON) :\n${JSON.stringify(dossiers)}\n${pdfBase64 ? `Le compte rendu de la réunion précédente (${pdfName || 'PDF'}) est joint.` : 'Aucun compte rendu joint.'}` }]
+  if (pdfBase64) content.unshift({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdfBase64 } })
+  const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, system: SYSTEM.reunion, messages: [{ role: 'user', content }] }) })
+  const data = await r.json().catch(() => ({}))
+  if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim()
+  if (!text) throw new Error('Réponse vide')
+  const saved = await sb(env, 'ia_reunions', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ meeting_date: meetingDate, previous_date: previousDate, cr_filename: pdfName || null, content: text, stats: { ...stats, dossiers }, model: data.model, generated_by: by }) })
+  return { id: saved?.[0]?.id, tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0) }
 }
 
 // ---------- Relances suggérées des « Sans suite » et « Refus » ----------
@@ -619,6 +661,21 @@ export default {
     }
     if (!allowed.includes(origin)) return new Response(JSON.stringify({ error: 'Origine non autorisée' }), { status: 403, headers })
 
+    // ---------- Briefing de réunion commerciale (direction) ----------
+    if (new URL(request.url).pathname === '/reunion') {
+      const who = await authenticate(env, request)
+      if (who.error) return new Response(JSON.stringify({ error: who.error }), { status: who.status, headers })
+      if (who.user.role !== 'direction') return new Response(JSON.stringify({ error: 'Réservé à la direction' }), { status: 403, headers })
+      let b = {}; try { b = await request.json() } catch { return new Response(JSON.stringify({ error: 'Requête illisible (fichier trop lourd ?)' }), { status: 400, headers }) }
+      const d = /^\d{4}-\d{2}-\d{2}$/
+      if (!d.test(String(b.meeting_date || '')) || !d.test(String(b.previous_date || ''))) return new Response(JSON.stringify({ error: 'Dates invalides' }), { status: 400, headers })
+      if (b.previous_date >= b.meeting_date) return new Response(JSON.stringify({ error: 'La réunion précédente doit être antérieure à celle du jour' }), { status: 400, headers })
+      const pdf = String(b.pdf_base64 || '')
+      if (pdf && pdf.length > 14000000) return new Response(JSON.stringify({ error: 'PDF trop lourd (10 Mo maximum)' }), { status: 413, headers })
+      try { return new Response(JSON.stringify(await generateReunion(env, { meetingDate: b.meeting_date, previousDate: b.previous_date, pdfBase64: pdf, pdfName: String(b.pdf_name || '').slice(0, 200), by: who.user.id })), { status: 200, headers }) }
+      catch (err) { return new Response(JSON.stringify({ error: err.message }), { status: 500, headers }) }
+    }
+
     // ---------- Rapport mensuel (direction) : génération et consignes ----------
     if (['/rapport', '/rapport/config'].includes(new URL(request.url).pathname)) {
       const who = await authenticate(env, request)
@@ -699,4 +756,4 @@ export default {
 // VERSION DU WORKER — à incrémenter à chaque modification
 // Vérification : https://germaclients-ia.old-cake-a2b6.workers.dev/version
 // ============================================================
-const WORKER_VERSION = '1.1.0'
+const WORKER_VERSION = '1.2.0'

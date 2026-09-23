@@ -1,6 +1,13 @@
-export const APP_DISPLAY_VERSION = '2.42.0-démo'
+export const APP_DISPLAY_VERSION = '2.43.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.43.0-démo',
+    date: '2026-09-23',
+    changes: [
+      '✨ Réunion commerciale (menu direction) : à partir de la date de la réunion précédente et de son compte rendu en PDF, l\'assistant prépare un briefing — suivi de chaque décision du compte rendu (fait / en cours / rien dans la base), activité depuis la dernière réunion, dossiers à discuter. Imprimable et archivé ; le PDF n\'est pas conservé',
+    ],
+  },
   {
     version: '2.42.0-démo',
     date: '2026-09-23',

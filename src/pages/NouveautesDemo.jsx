@@ -1,4 +1,4 @@
-import { Sparkles, Mail, ClipboardList, Flame, CalendarClock, Trophy, Newspaper } from 'lucide-react'
+import { Sparkles, Mail, ClipboardList, Flame, CalendarClock, Trophy, Newspaper, Users } from 'lucide-react'
 
 // Page de présentation, pensée pour une démo en direct : quoi, où, pour quoi faire.
 const ITEMS = [
@@ -8,6 +8,9 @@ const ITEMS = [
   { icon: ClipboardList, title: 'Rapport mensuel', where: 'Menu direction',
     what: 'Le 1er de chaque mois, un rapport d\'activité commerciale prêt pour le comité de direction : synthèse, chiffres comparés au mois précédent, activité par commercial, secteurs et territoires, faits marquants, points d\'alerte et pistes. Les chiffres sont calculés par le serveur ; la direction peut ajouter des remarques et modifier elle-même les consignes de rédaction. Imprimable en PDF.',
     why: 'Une heure de préparation de comité économisée chaque mois.', mois: '0,05 €', an: '0,60 €', base: 'un rapport par mois, plus les régénérations' },
+  { icon: Users, title: 'Briefing de réunion commerciale', where: 'Menu direction',
+    what: 'Le jour de la réunion, la direction indique la date de la précédente et joint son compte rendu en PDF. L\'assistant vérifie dans la base ce qui a été fait pour chaque décision prise, résume l\'activité depuis la dernière réunion et liste les dossiers à discuter. Imprimable, archivé.',
+    why: 'Une réunion qui repart du dernier compte rendu, faits à l\'appui, sans préparation manuelle.', mois: '0,20 €', an: '2,50 €', base: 'deux réunions par mois, avec compte rendu' },
   { icon: Sparkles, title: 'Suggestions du jour', where: 'Tableau de bord, à droite des relances',
     what: 'Chaque nuit, l\'assistant choisit pour chaque commercial les 5 prospects à traiter le lendemain, avec l\'action conseillée et la raison.',
     why: 'Commencer la journée avec une liste courte plutôt qu\'une longue liste de relances.', mois: '1,70 €', an: '20 €', base: '2 commerciaux, un calcul par nuit' },

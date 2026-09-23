@@ -44,6 +44,11 @@ Cron : `0 1 * * *` (1 h UTC = 3 h Paris en été, 2 h en hiver).
 - Cron : le 1er du mois (heure de Paris), génération du mois écoulé s'il n'existe pas encore.
 - Page `RapportMensuel.jsx` : chiffres affichés depuis `stats` (jamais depuis le texte), rendu Markdown minimal échappé, impression via une fenêtre dédiée.
 
+## Briefing de réunion commerciale
+
+- `POST /reunion` `{ meeting_date, previous_date, pdf_base64?, pdf_name? }` (direction, PDF ≤ 10 Mo) : `computePeriodStats` sur la période entre les deux réunions (comparée à une période de même durée juste avant), relances urgentes et suggestions de réouverture, PDF transmis à Claude comme document. Trois rubriques imposées : suivi du dernier compte rendu, activité depuis la dernière réunion, dossiers à discuter (pas d'ordre du jour). Archivé dans `ia_reunions` ; le PDF n'est pas stocké.
+- Page `ReunionCommerciale.jsx` ; rendu et impression partagés avec le rapport dans `src/utils/docRender.js`.
+
 ## Création de comptes (utilisée par la prod)
 
 `POST /admin/create-user` avec le jeton de session d'un compte **direction** actif : crée l'utilisateur par l'API d'administration Supabase (clé de service), active son profil avec le rôle choisi, journalise. Les inscriptions publiques sont fermées dans Supabase.
@@ -83,6 +88,7 @@ Un appel manuel long peut dépasser le délai Cloudflare : les lots déjà trait
 | `ia_veille_vu` | URL des articles déjà analysés | Worker |
 | `ia_urgences` | urgence + moyen conseillé + raison par relance | Worker |
 | `ia_rapports` | rapports mensuels (texte + chiffres), lecture direction | Worker |
+| `ia_reunions` | briefings de réunion commerciale, lecture direction | Worker |
 | `ia_rapport_config` | consignes de rédaction du rapport, lecture direction | Worker |
 | `ia_usage` | compteur quotidien de demandes IA par personne | Worker |
 
@@ -102,7 +108,7 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 
 ## Version du Worker
 
-La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version.
+La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version ; 1.2.0 = briefing de réunion commerciale (`/reunion`), calcul des chiffres sur une période quelconque.
 
 ## Pièges connus
 
