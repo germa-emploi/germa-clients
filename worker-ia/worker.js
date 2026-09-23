@@ -428,7 +428,7 @@ async function generateRapport(env, { month, remarques = '', by = null } = {}) {
   const norm = (t) => t.replace(/\*\*/g, '').replace(/\s+/g, ' ').trim().toLowerCase()
   const expected = consignes.split('\n').filter(l => /^\s*##\s+/.test(l)).map(l => norm(l.replace(/^\s*##\s+/, '').split(/\s+[—–-]\s+/)[0]))
   const ask = async (messages) => {
-    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, temperature: 0, system: SYSTEM.rapport.replace('{{CONSIGNES}}', consignes), messages }) })
+    const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 8000, system: SYSTEM.rapport.replace('{{CONSIGNES}}', consignes), messages }) })
     const data = await r.json().catch(() => ({}))
     if (!r.ok) throw new Error(data?.error?.message || `API ${r.status}`)
     return { data, content: (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n').trim() }

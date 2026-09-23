@@ -100,6 +100,10 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 - Notation : ~950 tokens par fiche · Suggestions du jour : ~10 000 tokens par commercial · Veille : ~13 000 tokens par nuit · Rouvrir : ~4 000 par catégorie · Urgence : ~1 800 par relance (premier passage), puis incrémental.
 - Ordre de grandeur pour GERMA (150 actions/mois, 2 commerciaux) : **6 à 7 € par mois** toutes fonctions comprises. Suivi : console Claude → API keys → colonne Cost ; plafond réglable dans Limits.
 
+## Pièges connus
+
+- Sonnet 5 refuse le paramètre `temperature` (« deprecated for this model ») : ne pas l'envoyer. La régularité du rapport mensuel repose sur la consigne et le contrôle des titres.
+
 ## Chantiers à venir (Worker)
 
 - **Séparer** un petit Worker « administration » (création de comptes, stable) du Worker IA (qui évolue souvent) : aujourd'hui, un déploiement raté de la partie IA couperait aussi la création de comptes en prod.
