@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.23.0'
+export const APP_DISPLAY_VERSION = '2.23.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.23.1',
+    date: '2026-09-23',
+    changes: ['Sécurité : bibliothèque Excel (SheetJS) mise à jour en 0.20.3, qui corrige deux failles connues de la version précédente'],
+  },
   {
     version: '2.23.0',
     date: '2026-09-23',
