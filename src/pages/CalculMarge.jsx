@@ -7,7 +7,7 @@ import { Calculator, Plus, Trash2, RotateCcw, Info, Settings, Save } from 'lucid
 
 const eur = (x) => (Number(x) || 0).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
 const pct = (x) => `${((Number(x) || 0) * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`
-const num = (x, d = 3) => (x === null || x === undefined || !isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: d }))
+const num = (x, d = 3) => (x === null || x === undefined || !isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: Math.min(2, d), maximumFractionDigits: d }))
 const AUTRE = '__autre'
 
 const VIDE = (structure = 'ETTI') => ({

@@ -61,9 +61,9 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-germa-800 via-germa-700 to-germa-600 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-germa-800 via-germa-700 to-germa-600 flex items-center justify-center p-4 py-6 overflow-y-auto">
       {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
+      <div className="fixed inset-0 opacity-10 pointer-events-none">
         <div className="absolute inset-0" style={{
           backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
           backgroundSize: '40px 40px'
@@ -72,10 +72,10 @@ export default function Login() {
 
       <div className="w-full max-w-md relative">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-5">
-            <img src="/logo_etti.jpg" alt="GERMA ETTI" className="h-24 sm:h-32 rounded-2xl shadow-xl bg-white p-2" />
-            <img src="/logo_ai.jpg" alt="GERMA AI" className="h-24 sm:h-32 rounded-2xl shadow-xl bg-white p-2" />
+        <div className="text-center mb-5">
+          <div className="flex items-center justify-center gap-4 mb-3">
+            <img src="/logo_etti.jpg" alt="GERMA ETTI" className="h-20 sm:h-24 [@media(min-height:900px)]:h-32 rounded-2xl shadow-xl bg-white p-2" />
+            <img src="/logo_ai.jpg" alt="GERMA AI" className="h-20 sm:h-24 [@media(min-height:900px)]:h-32 rounded-2xl shadow-xl bg-white p-2" />
           </div>
           <h1 className="font-display font-bold text-3xl text-white">GermaClients</h1>
           <p className="text-germa-200 text-sm mt-1">Suivi Activité Commerciale Germa Etti - Ai</p>
@@ -209,7 +209,7 @@ export default function Login() {
           )}
         </div>
 
-        <p className="text-center text-germa-200 text-xs mt-6">
+        <p className="text-center text-germa-200 text-xs mt-4">
           © {new Date().getFullYear()} GERMA Emploi ETTI - AI — Application interne
           <br />
           <VersionBadge onClick={() => setShowChangelog(true)} className="text-germa-300 hover:text-white hover:bg-germa-600 mt-1 inline-block" />
