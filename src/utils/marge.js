@@ -78,6 +78,24 @@ export function calculerMarge(m) {
   }
 }
 
+// Catalogue d'EPI de départ (prix indicatifs HT, à ajuster par la direction)
+export const EPI_DEFAUT = [
+  { nom: 'Chaussures de sécurité S3', prix: 45 },
+  { nom: 'Gants de manutention (paire)', prix: 4 },
+  { nom: 'Gants anti-coupure (paire)', prix: 8 },
+  { nom: 'Gilet haute visibilité', prix: 6 },
+  { nom: 'Casque de chantier', prix: 12 },
+  { nom: 'Lunettes de protection', prix: 5 },
+  { nom: 'Bouchons d\'oreilles (boîte)', prix: 10 },
+  { nom: 'Casque antibruit', prix: 20 },
+  { nom: 'Masque FFP2 (boîte de 20)', prix: 15 },
+  { nom: 'Pantalon de travail', prix: 30 },
+  { nom: 'Veste de travail', prix: 35 },
+  { nom: 'Vêtement de pluie', prix: 25 },
+  { nom: 'Genouillères', prix: 15 },
+]
+export const PARAMS_DEFAUT = Object.fromEntries(Object.entries(STRUCTURES).map(([k, v]) => [k, { ifm: v.ifm, icp: v.icp, charges: v.charges }]))
+
 // Exemples calés sur des factures réelles (août 2026), anonymisés
 export const EXEMPLES = [
   {

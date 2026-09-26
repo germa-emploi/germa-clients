@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.45.0-démo'
+export const APP_DISPLAY_VERSION = '2.46.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.46.0-démo',
+    date: '2026-09-26',
+    changes: ['Reprend la prod 2.27.0 (calcul de marge : paramètres direction enregistrés, EPI en catalogue — en démo, l\'enregistrement des paramètres est bloqué)'],
+  },
   {
     version: '2.45.0-démo',
     date: '2026-09-26',
@@ -298,6 +303,24 @@ export const CHANGELOG = [
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
     ],
+  },
+  {
+    version: '2.27.0',
+    date: '2026-09-26',
+    changes: [
+      'Calcul de marge : paramètres (IFM, ICP, charges par structure) réservés à la direction et enregistrés pour tous',
+      'Équipements (EPI) : lignes à menu déroulant avec quantité, prix issus d\'un catalogue géré par la direction, option « Autre » avec libellé et prix libres',
+    ],
+  },
+  {
+    version: '2.26.0',
+    date: '2026-09-26',
+    changes: ['Calcul de marge simplifié en vue d\'un usage par les commerciaux : retrait des primes soumises, de l\'accompagnement, des frais de structure et de l\'aide au poste'],
+  },
+  {
+    version: '2.25.1',
+    date: '2026-09-26',
+    changes: ['Menu de gauche : il défile désormais sur les petits écrans (portables), le logo et le bloc de déconnexion restant visibles'],
   },
   {
     version: '2.25.0',
