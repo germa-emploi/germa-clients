@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.46.0-démo'
+export const APP_DISPLAY_VERSION = '2.46.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.46.1-démo',
+    date: '2026-09-26',
+    changes: ['Correction : la page Calcul de marge s\'affichait blanche', 'Page de connexion : tout tient sur un écran de portable, numéro de version compris'],
+  },
   {
     version: '2.46.0-démo',
     date: '2026-09-26',
