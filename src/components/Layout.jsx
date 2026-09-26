@@ -82,9 +82,9 @@ export default function Layout() {
     <div className="min-h-screen bg-gray-50">
       {/* Desktop sidebar */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="flex flex-col flex-grow bg-violet-50 border-r-4 border-violet-400 px-4 py-6">
+        <div className="flex flex-col flex-grow min-h-0 bg-violet-50 border-r-4 border-violet-400 px-4 py-6">
           {/* Logo */}
-          <div className="flex flex-col items-center px-3 mb-8">
+          <div className="flex flex-col items-center px-3 mb-5 flex-shrink-0">
             <div className="flex items-center gap-2 mb-3">
               <img src="/logo_etti.jpg" alt="GERMA ETTI" className="w-16 h-auto rounded-lg bg-white shadow-sm p-0.5" />
               <img src="/logo_ai.jpg" alt="GERMA AI" className="w-16 h-auto rounded-lg bg-white shadow-sm p-0.5" />
@@ -96,8 +96,8 @@ export default function Layout() {
             </div>
           </div>
 
-          {/* Nav */}
-          <nav className="flex-1 flex flex-col gap-1">
+          {/* Nav : défile seule si l'écran est trop petit, logo et profil restent visibles */}
+          <nav className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-1 -mx-1 px-1">
             {allNavItems.map(item => (
               <NavItem key={item.to} {...item} />
             ))}
@@ -105,7 +105,7 @@ export default function Layout() {
           </nav>
 
           {/* User */}
-          <div className="border-t border-gray-100 pt-4 mt-4">
+          <div className="border-t border-gray-100 pt-4 mt-4 flex-shrink-0">
             <div className="flex items-center gap-3 px-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-germa-100 flex items-center justify-center">
                 <span className="text-germa-700 font-bold text-xs">
