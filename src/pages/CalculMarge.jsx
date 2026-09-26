@@ -182,7 +182,7 @@ export default function CalculMarge() {
         </div>
 
         {/* ---------------- résultats ---------------- */}
-        <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-16">
+        <div className="lg:col-span-2 space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto lg:pr-1">
           <div className="card p-5">
             <p className="text-xs text-gray-500">Marge</p>
             <p className={`font-display font-bold text-3xl ${couleur}`}>{eur(r.marge)}</p>
