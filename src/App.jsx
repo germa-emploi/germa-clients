@@ -8,6 +8,7 @@ import EnterpriseDetail from './pages/EnterpriseDetail'
 import Admin from './pages/Admin'
 import Historique from './pages/Historique'
 import RevisionBase from './pages/RevisionBase'
+import CalculMarge from './pages/CalculMarge'
 import ActionsDuJour from './pages/ActionsDuJour'
 import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
@@ -57,6 +58,7 @@ export default function App() {
         <Route path="entreprises/:id" element={<EnterpriseDetail />} />
         <Route path="historique" element={<Historique />} />
         <Route path="revision-base" element={<ProtectedRoute adminOnly><RevisionBase /></ProtectedRoute>} />
+        <Route path="calcul-marge" element={<ProtectedRoute adminOnly><CalculMarge /></ProtectedRoute>} />
         <Route path="actions-du-jour/:profileId" element={<ProtectedRoute adminOnly><ActionsDuJour /></ProtectedRoute>} />
         <Route path="admin" element={
           <ProtectedRoute adminOnly>

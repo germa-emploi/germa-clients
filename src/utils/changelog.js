@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.24.0'
+export const APP_DISPLAY_VERSION = '2.25.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.25.0',
+    date: '2026-09-26',
+    changes: [
+      'Nouvelle page « Calcul de marge » (direction) : marge d\'une mise à disposition AI ou ETTI selon le taux horaire, le coefficient, les heures sup et de nuit, les primes, les indemnités, l\'IFM, l\'ICP, les charges et les équipements',
+      'Résultats : chiffre d\'affaires, coût complet, marge en euros, en % et par heure, coefficient de seuil et coefficient pour une marge cible ; deux exemples calés au centime sur des factures réelles',
+    ],
+  },
   {
     version: '2.24.0',
     date: '2026-09-23',
