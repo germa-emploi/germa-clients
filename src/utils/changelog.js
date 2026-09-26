@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.44.1-démo'
+export const APP_DISPLAY_VERSION = '2.45.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.45.0-démo',
+    date: '2026-09-26',
+    changes: ['Calcul de marge simplifié en vue d\'un usage par les commerciaux : retrait des primes soumises, de l\'accompagnement, des frais de structure et de l\'aide au poste'],
+  },
   {
     version: '2.44.1-démo',
     date: '2026-09-26',

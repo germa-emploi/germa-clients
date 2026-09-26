@@ -10,7 +10,7 @@ const VIDE = (structure = 'ETTI') => ({
   structure, tauxHoraire: 12.31, coef: structure === 'AI' ? 1.88 : 1.82, heuresNormales: 35, heuresSup25: 0, heuresSup50: 0, heuresNuit: 0, pctNuit: 25, jours: 5,
   primes: [], indemnites: [], equipement: 0, equipementRefacture: false,
   ifm: STRUCTURES[structure].ifm, icp: STRUCTURES[structure].icp, charges: STRUCTURES[structure].charges,
-  accompagnementHeure: 0, structureHeure: 0, aideHeure: 0, margeCible: 20,
+  margeCible: 20,
 })
 
 function Field({ label, value, onChange, step = '0.01', suffix, hint, w = 'w-full' }) {
@@ -32,8 +32,8 @@ export default function CalculMarge() {
   const set = (k, v) => setM(s => ({ ...s, [k]: v }))
   const r = useMemo(() => calculerMarge(m), [m])
 
-  const choisirStructure = (st) => setM(s => ({ ...s, structure: st, ifm: STRUCTURES[st].ifm, icp: STRUCTURES[st].icp, charges: STRUCTURES[st].charges, aideHeure: st === 'AI' ? 0 : s.aideHeure }))
-  const charger = (ex) => { const s = STRUCTURES[ex.structure]; setM({ ...VIDE(ex.structure), ...ex, ifm: s.ifm, icp: s.icp, charges: s.charges }); setExemple(ex) }
+  const choisirStructure = (st) => setM(s => ({ ...s, structure: st, ifm: STRUCTURES[st].ifm, icp: STRUCTURES[st].icp, charges: STRUCTURES[st].charges }))
+  const charger = (ex) => { const s = STRUCTURES[ex.structure]; setM({ ...VIDE(ex.structure), ...ex, primes: [], ifm: s.ifm, icp: s.icp, charges: s.charges }); setExemple(ex) }
   const majListe = (k, i, champ, v) => setM(s => ({ ...s, [k]: s[k].map((x, j) => j === i ? { ...x, [champ]: v } : x) }))
   const ajouter = (k, x) => setM(s => ({ ...s, [k]: [...s[k], x] }))
   const retirer = (k, i) => setM(s => ({ ...s, [k]: s[k].filter((_, j) => j !== i) }))
@@ -45,14 +45,14 @@ export default function CalculMarge() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display font-bold text-2xl text-gray-900 flex items-center gap-2"><Calculator size={24} className="text-germa-700" /> Calcul de marge</h1>
-          <p className="text-gray-500 text-sm mt-1">Marge d'une mise à disposition selon le salaire, les primes, l'IFM, l'ICP, les charges et le coefficient. Rien n'est enregistré.</p>
+          <p className="text-gray-500 text-sm mt-1">Marge d'une mise à disposition selon le salaire, les heures, les indemnités, l'IFM, l'ICP, les charges et le coefficient. Rien n'est enregistré.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {EXEMPLES.map(ex => <button key={ex.nom} onClick={() => charger(ex)} className="btn-secondary text-xs">{ex.structure === 'AI' ? 'Exemple AI' : 'Exemple ETTI'}</button>)}
           <button onClick={() => { setM(VIDE(m.structure)); setExemple(null) }} className="btn-secondary text-xs flex items-center gap-1"><RotateCcw size={13} /> Vider</button>
         </div>
       </div>
-      {exemple && <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">{exemple.nom} — facture réelle : <b>{eur(exemple.factureReelle)}</b> HT, calcul : <b>{eur(r.ca)}</b>{Math.abs(r.ca - exemple.factureReelle) < 0.01 ? ' ✓ identique' : ' (paramètres modifiés)'}</div>}
+      {exemple && <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">{exemple.nom}</div>}
 
       <div className="grid lg:grid-cols-5 gap-5 items-start">
         {/* ---------------- saisie ---------------- */}
@@ -71,19 +71,6 @@ export default function CalculMarge() {
               <Field label="Heures de nuit" value={m.heuresNuit} onChange={v => set('heuresNuit', v)} step="0.25" suffix="h" />
               <Field label="Majoration de nuit" value={m.pctNuit} onChange={v => set('pctNuit', v)} step="1" suffix="%" />
             </div>
-          </div>
-
-          <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-900">Primes soumises à cotisations <span className="font-normal text-gray-400">— refacturées au coefficient</span></h3><button onClick={() => ajouter('primes', { label: '', montant: 0, unite: 'jour' })} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
-            {m.primes.length === 0 && <p className="text-xs text-gray-400">Aucune (13e mois, salissure, douche, rendement…)</p>}
-            {m.primes.map((p, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input value={p.label} onChange={e => majListe('primes', i, 'label', e.target.value)} placeholder="Libellé" className="input-field text-sm flex-1" />
-                <input type="number" step="0.01" value={p.montant} onChange={e => majListe('primes', i, 'montant', Number(e.target.value))} className="input-field text-sm w-24" />
-                <select value={p.unite} onChange={e => majListe('primes', i, 'unite', e.target.value)} className="select-field text-sm w-36"><option value="heure">€ / heure normale</option><option value="jour">€ / jour</option><option value="forfait">€ forfait</option></select>
-                <button onClick={() => retirer('primes', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
-              </div>
-            ))}
           </div>
 
           <div className="card p-4 space-y-2">
@@ -112,9 +99,6 @@ export default function CalculMarge() {
               <Field label="IFM" value={m.ifm} onChange={v => set('ifm', v)} step="0.1" suffix="%" hint={m.structure === 'AI' ? 'non due en AI' : '10 % du brut'} />
               <Field label="ICP" value={m.icp} onChange={v => set('icp', v)} step="0.1" suffix="%" hint="10 % du brut + IFM" />
               <Field label="Charges patronales effectives" value={m.charges} onChange={v => set('charges', v)} step="0.1" suffix="%" hint="du brut total" />
-              <Field label="Accompagnement" value={m.accompagnementHeure} onChange={v => set('accompagnementHeure', v)} suffix="€/h" hint="temps de la conseillère" />
-              <Field label="Frais de structure" value={m.structureHeure} onChange={v => set('structureHeure', v)} suffix="€/h" />
-              {m.structure === 'ETTI' && <Field label="Aide au poste" value={m.aideHeure} onChange={v => set('aideHeure', v)} suffix="€/h" hint="compte en recette" />}
             </div>
           </details>
         </div>
@@ -141,8 +125,7 @@ export default function CalculMarge() {
                 {[...r.lignesSalaire, ...r.lignesIndemnites].filter(l => l.factureLigne).map((l, i) => <tr key={i} className="text-gray-600"><td className="py-0.5 pl-3">{l.label}</td><td className="py-0.5 text-right text-xs text-gray-400">{num(l.qte, 2)} × {num(l.facture, 2)}</td><td className="py-0.5 text-right">{eur(l.factureLigne)}</td></tr>)}
                 {r.equipementFacture > 0 && <tr className="text-gray-600"><td className="py-0.5 pl-3" colSpan={2}>Équipements</td><td className="py-0.5 text-right">{eur(r.equipementFacture)}</td></tr>}
                 <tr><td className="pt-3 pb-1 font-semibold" colSpan={2}>Coût complet</td><td className="pt-3 pb-1 text-right font-semibold">{eur(r.cout)}</td></tr>
-                {[['Salaire (éléments soumis)', r.salaire], ['IFM', r.ifm], ['ICP', r.icp], ['Charges patronales', r.charges], ['Indemnités versées', r.indemnites], ['Équipements', r.equipement], ['Accompagnement', r.accompagnement], ['Frais de structure', r.structure]].filter(([, v]) => v).map(([l, v]) => <tr key={l} className="text-gray-600"><td className="py-0.5 pl-3" colSpan={2}>{l}</td><td className="py-0.5 text-right">{eur(v)}</td></tr>)}
-                {r.aide > 0 && <tr className="text-emerald-700"><td className="pt-3 pb-1 font-semibold" colSpan={2}>Aide au poste</td><td className="pt-3 pb-1 text-right font-semibold">+ {eur(r.aide)}</td></tr>}
+                {[['Salaire (éléments soumis)', r.salaire], ['IFM', r.ifm], ['ICP', r.icp], ['Charges patronales', r.charges], ['Indemnités versées', r.indemnites], ['Équipements', r.equipement]].filter(([, v]) => v).map(([l, v]) => <tr key={l} className="text-gray-600"><td className="py-0.5 pl-3" colSpan={2}>{l}</td><td className="py-0.5 text-right">{eur(v)}</td></tr>)}
               </tbody>
             </table>
           </div>
