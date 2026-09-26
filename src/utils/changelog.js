@@ -1,6 +1,14 @@
-export const APP_DISPLAY_VERSION = '2.26.0'
+export const APP_DISPLAY_VERSION = '2.27.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.27.0',
+    date: '2026-09-26',
+    changes: [
+      'Calcul de marge : paramètres (IFM, ICP, charges par structure) réservés à la direction et enregistrés pour tous',
+      'Équipements (EPI) : lignes à menu déroulant avec quantité, prix issus d\'un catalogue géré par la direction, option « Autre » avec libellé et prix libres',
+    ],
+  },
   {
     version: '2.26.0',
     date: '2026-09-26',
