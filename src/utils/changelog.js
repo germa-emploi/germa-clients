@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.27.1'
+export const APP_DISPLAY_VERSION = '2.27.2'
 
 export const CHANGELOG = [
+  {
+    version: '2.27.2',
+    date: '2026-09-26',
+    changes: ['Calcul de marge : sur les écrans de portable, le panneau des résultats ne dépasse plus de l\'écran et défile si nécessaire ; la page défile normalement'],
+  },
   {
     version: '2.27.1',
     date: '2026-09-26',
