@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.43.0-démo'
+export const APP_DISPLAY_VERSION = '2.44.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.44.0-démo',
+    date: '2026-09-26',
+    changes: ['Reprend la prod 2.25.0 (Calcul de marge)'],
+  },
   {
     version: '2.43.0-démo',
     date: '2026-09-23',
@@ -282,6 +287,14 @@ export const CHANGELOG = [
       '✨ Priorités de la semaine (tableau de bord) : les 10 prospects tièdes à travailler, notés de 1 à 5 avec la raison',
       '📋 Copier les e-mails (listes) : sélection des adresses de la liste filtrée (e-mail de la fiche et des interlocuteurs) puis copie pour un mailing en Cci',
       'Appels IA via le Worker Cloudflare germaclients-ia (modèle Sonnet 5) ; repli sur un gabarit local si l\'IA ne répond pas',
+    ],
+  },
+  {
+    version: '2.25.0',
+    date: '2026-09-26',
+    changes: [
+      'Nouvelle page « Calcul de marge » (direction) : marge d\'une mise à disposition AI ou ETTI selon le taux horaire, le coefficient, les heures sup et de nuit, les primes, les indemnités, l\'IFM, l\'ICP, les charges et les équipements',
+      'Résultats : chiffre d\'affaires, coût complet, marge en euros, en % et par heure, coefficient de seuil et coefficient pour une marge cible ; deux exemples calés au centime sur des factures réelles',
     ],
   },
   {

@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History, Sparkles, Newspaper, FileText, ListChecks, Users
+  History, Sparkles, Newspaper, FileText, ListChecks, Users, Calculator
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 import { supabase } from '../lib/supabase'
@@ -22,6 +22,7 @@ const adminItems = [
   { to: '/rapport-mensuel', icon: FileText, label: 'Rapport mensuel' },
   { to: '/reunion-commerciale', icon: Users, label: 'Réunion commerciale' },
   { to: '/revision-base', icon: ListChecks, label: 'Révision de la base' },
+  { to: '/calcul-marge', icon: Calculator, label: 'Calcul de marge' },
   { to: '/admin', icon: Shield, label: 'Administration' },
 ]
 
