@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.25.0'
+export const APP_DISPLAY_VERSION = '2.25.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.25.1',
+    date: '2026-09-26',
+    changes: ['Menu de gauche : il défile désormais sur les petits écrans (portables), le logo et le bloc de déconnexion restant visibles'],
+  },
   {
     version: '2.25.0',
     date: '2026-09-26',
