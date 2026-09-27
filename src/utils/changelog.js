@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.27.2'
+export const APP_DISPLAY_VERSION = '2.28.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.28.0',
+    date: '2026-09-26',
+    changes: ['Calcul de marge : retour des primes soumises à cotisations (13e mois, salissure, douche…), refacturées au coefficient ; les exemples retombent de nouveau au centime sur les factures réelles'],
+  },
   {
     version: '2.27.2',
     date: '2026-09-26',

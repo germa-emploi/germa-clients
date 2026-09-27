@@ -12,7 +12,7 @@ const AUTRE = '__autre'
 
 const VIDE = (structure = 'ETTI') => ({
   structure, tauxHoraire: 12.31, coef: structure === 'AI' ? 1.88 : 1.82, heuresNormales: 35, heuresSup25: 0, heuresSup50: 0, heuresNuit: 0, pctNuit: 25, jours: 5,
-  indemnites: [], epis: [], equipementRefacture: false, margeCible: 20,
+  primes: [], indemnites: [], epis: [], equipementRefacture: false, margeCible: 20,
 })
 
 function Field({ label, value, onChange, step = '0.01', suffix, hint, w = 'w-full' }) {
@@ -55,9 +55,9 @@ export default function CalculMarge() {
     return { ...l, prixUnit: prix, total: prix * (Number(l.qte) || 0), nom: l.choix === AUTRE ? (l.label || 'Autre') : l.choix }
   })
   const equipement = epiLignes.reduce((s, l) => s + l.total, 0)
-  const r = useMemo(() => calculerMarge({ ...m, primes: [], equipement, ifm: params.ifm, icp: params.icp, charges: params.charges }), [m, equipement, params])
+  const r = useMemo(() => calculerMarge({ ...m, equipement, ifm: params.ifm, icp: params.icp, charges: params.charges }), [m, equipement, params])
 
-  const charger = (ex) => { setM({ ...VIDE(ex.structure), ...ex, primes: [], epis: [] }); setExemple(ex) }
+  const charger = (ex) => { setM({ ...VIDE(ex.structure), ...ex, epis: [] }); setExemple(ex) }
   const majListe = (k, i, champ, v) => setM(s => ({ ...s, [k]: s[k].map((x, j) => j === i ? { ...x, [champ]: v } : x) }))
   const ajouter = (k, x) => setM(s => ({ ...s, [k]: [...s[k], x] }))
   const retirer = (k, i) => setM(s => ({ ...s, [k]: s[k].filter((_, j) => j !== i) }))
@@ -81,14 +81,14 @@ export default function CalculMarge() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="font-display font-bold text-2xl text-gray-900 flex items-center gap-2"><Calculator size={24} className="text-germa-700" /> Calcul de marge</h1>
-          <p className="text-gray-500 text-sm mt-1">Marge d'une mise à disposition selon le salaire, les heures, les indemnités, les équipements et le coefficient. Rien n'est enregistré.</p>
+          <p className="text-gray-500 text-sm mt-1">Marge d'une mise à disposition selon le salaire, les heures, les primes, les indemnités, les équipements et le coefficient. Rien n'est enregistré.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {EXEMPLES.map(ex => <button key={ex.nom} onClick={() => charger(ex)} className="btn-secondary text-xs">{ex.structure === 'AI' ? 'Exemple AI' : 'Exemple ETTI'}</button>)}
           <button onClick={() => { setM(VIDE(m.structure)); setExemple(null) }} className="btn-secondary text-xs flex items-center gap-1"><RotateCcw size={13} /> Vider</button>
         </div>
       </div>
-      {exemple && <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">{exemple.nom}</div>}
+      {exemple && <div className="text-xs text-gray-600 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">{exemple.nom} — facture réelle : <b>{eur(exemple.factureReelle)}</b> HT, calcul : <b>{eur(r.ca)}</b>{Math.abs(r.ca - exemple.factureReelle) < 0.01 ? ' ✓ identique' : ' (paramètres modifiés)'}</div>}
 
       <div className="grid lg:grid-cols-5 gap-5 items-start">
         {/* ---------------- saisie ---------------- */}
@@ -107,6 +107,19 @@ export default function CalculMarge() {
               <Field label="Heures de nuit" value={m.heuresNuit} onChange={v => set('heuresNuit', v)} step="0.25" suffix="h" />
               <Field label="Majoration de nuit" value={m.pctNuit} onChange={v => set('pctNuit', v)} step="1" suffix="%" />
             </div>
+          </div>
+
+          <div className="card p-4 space-y-2">
+            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-900">Primes soumises à cotisations <span className="font-normal text-gray-400">— refacturées au coefficient</span></h3><button onClick={() => ajouter('primes', { label: '', montant: 0, unite: 'jour' })} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
+            {m.primes.length === 0 && <p className="text-xs text-gray-400">Aucune (13e mois, salissure, douche, rendement…)</p>}
+            {m.primes.map((p, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input value={p.label} onChange={e => majListe('primes', i, 'label', e.target.value)} placeholder="Libellé" className="input-field text-sm flex-1" />
+                <input type="number" step="0.01" value={p.montant} onChange={e => majListe('primes', i, 'montant', Number(e.target.value))} className="input-field text-sm w-24" />
+                <select value={p.unite} onChange={e => majListe('primes', i, 'unite', e.target.value)} className="select-field text-sm w-36"><option value="heure">€ / heure normale</option><option value="jour">€ / jour</option><option value="forfait">€ forfait</option></select>
+                <button onClick={() => retirer('primes', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
+              </div>
+            ))}
           </div>
 
           <div className="card p-4 space-y-2">
