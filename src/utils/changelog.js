@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.30.0'
+export const APP_DISPLAY_VERSION = '2.30.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.30.1',
+    date: '2026-10-11',
+    changes: ['Calcul de marge : ajout d\'un équipement par un bouton « + » en bas de la liste (dans le calcul et dans le catalogue)'],
+  },
   {
     version: '2.30.0',
     date: '2026-10-11',
