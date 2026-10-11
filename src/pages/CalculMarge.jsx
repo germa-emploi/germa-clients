@@ -161,10 +161,10 @@ export default function CalculMarge() {
 
           <div className="card p-4 space-y-2">
             <h3 className="text-sm font-semibold text-gray-900">Équipements fournis (EPI)</h3>
-            {m.epis.length === 0 && <p className="text-xs text-gray-400">Aucun équipement fourni.</p>}
             {epiLignes.map((l, i) => (
               <div key={i} className="flex items-center gap-2 flex-wrap">
-                <select value={l.choix} onChange={e => majListe('epis', i, 'choix', e.target.value)} className="select-field text-sm flex-1 min-w-[180px]">
+                <select value={l.choix} onChange={e => majListe('epis', i, 'choix', e.target.value)} className={`select-field text-sm flex-1 min-w-[180px] ${l.choix ? '' : 'text-gray-400'}`}>
+                  <option value="" disabled>Choisir un équipement…</option>
                   {catalogue.map(e => <option key={e.nom} value={e.nom}>{e.nom} — {eur(e.prix)}</option>)}
                   <option value={AUTRE}>Autre…</option>
                 </select>
@@ -178,7 +178,7 @@ export default function CalculMarge() {
                 <button onClick={() => retirer('epis', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
             ))}
-            <button onClick={() => ajouter('epis', { choix: catalogue[0]?.nom || AUTRE, qte: 1, label: '', prix: 0 })} className="w-full flex items-center justify-center py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:text-germa-700 hover:border-germa-400 hover:bg-germa-50" title="Ajouter un équipement"><Plus size={16} /></button>
+            <button onClick={() => ajouter('epis', { choix: '', qte: 1, label: '', prix: 0 })} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-gray-300 text-sm text-gray-500 hover:text-germa-700 hover:border-germa-400 hover:bg-germa-50"><Plus size={15} /> Ajouter un équipement</button>
             {m.epis.length > 0 && <label className="flex items-center gap-2 text-sm text-gray-700 pt-1"><input type="checkbox" checked={m.equipementRefacture} onChange={e => set('equipementRefacture', e.target.checked)} className="accent-germa-700" /> Refacturés au client (au réel) — total {eur(equipement)}</label>}
           </div>
 
