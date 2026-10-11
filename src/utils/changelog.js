@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.49.2-démo'
+export const APP_DISPLAY_VERSION = '2.50.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.50.0-démo',
+    date: '2026-10-11',
+    changes: ['Calcul de marge simplifié : saisie réduite au taux horaire, au coefficient et à la durée de la mission (heures sup, nuit et jours retirés) ; primes et indemnités par heure ou pour la mission ; case « Coefficient pour » élargie', 'Nouvelle indication sous la marge : durée de mission à partir de laquelle les équipements fournis sont rentabilisés, avec une alerte si la mission est trop courte'],
+  },
   {
     version: '2.49.2-démo',
     date: '2026-10-11',
