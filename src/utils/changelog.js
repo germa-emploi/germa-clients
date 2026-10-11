@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.48.0-démo'
+export const APP_DISPLAY_VERSION = '2.49.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.49.0-démo',
+    date: '2026-10-11',
+    changes: ['Calcul de marge : catalogue des EPI en une seule liste, avec une colonne AI et une colonne ETTI — une case à cocher pour proposer l\'article dans chaque structure et un prix propre à chacune'],
+  },
   {
     version: '2.48.0-démo',
     date: '2026-10-11',

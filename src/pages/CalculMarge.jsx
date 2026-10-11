@@ -9,8 +9,18 @@ const eur = (x) => (Number(x) || 0).toLocaleString('fr-FR', { style: 'currency',
 const pct = (x) => `${((Number(x) || 0) * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %`
 const num = (x, d = 3) => (x === null || x === undefined || !isFinite(x) ? '—' : Number(x).toLocaleString('fr-FR', { minimumFractionDigits: Math.min(2, d), maximumFractionDigits: d }))
 const AUTRE = '__autre'
-// catalogue des EPI par structure ; ancien format (liste commune) → recopié dans les deux
-const normEpi = (e) => Array.isArray(e) ? { ETTI: e, AI: e } : { ETTI: Array.isArray(e?.ETTI) ? e.ETTI : EPI_DEFAUT, AI: Array.isArray(e?.AI) ? e.AI : EPI_DEFAUT }
+// Catalogue des EPI : une liste unique, avec pour chaque article un prix et une case « proposé » par structure.
+// Reprend les anciens formats (liste commune, ou une liste par structure).
+const ligneEpi = (nom, ai, etti) => ({ nom, actif_ai: !!ai, prix_ai: ai ? Number(ai.prix) || 0 : 0, actif_etti: !!etti, prix_etti: etti ? Number(etti.prix) || 0 : 0 })
+const normEpi = (e) => {
+  if (Array.isArray(e) && e.some(x => 'actif_ai' in x || 'actif_etti' in x)) return e.map(x => ({ nom: x.nom || '', actif_ai: !!x.actif_ai, prix_ai: Number(x.prix_ai) || 0, actif_etti: !!x.actif_etti, prix_etti: Number(x.prix_etti) || 0 }))
+  if (Array.isArray(e)) return e.map(x => ligneEpi(x.nom, x, x))
+  const ai = Array.isArray(e?.AI) ? e.AI : [], etti = Array.isArray(e?.ETTI) ? e.ETTI : []
+  if (!ai.length && !etti.length) return EPI_DEFAUT.map(x => ligneEpi(x.nom, x, x))
+  const noms = [...new Set([...etti.map(x => x.nom), ...ai.map(x => x.nom)])]
+  return noms.map(n => ligneEpi(n, ai.find(x => x.nom === n), etti.find(x => x.nom === n)))
+}
+const catalogueDe = (rows, st) => { const k = st === 'AI' ? 'ai' : 'etti'; return rows.filter(r => r[`actif_${k}`] && (r.nom || '').trim()).map(r => ({ nom: r.nom, prix: r[`prix_${k}`] })) }
 
 const VIDE = (structure = 'ETTI') => ({
   structure, tauxHoraire: 12.31, coef: structure === 'AI' ? 1.88 : 1.82, heuresNormales: 35, heuresSup25: 0, heuresSup50: 0, heuresNuit: 0, pctNuit: 25, jours: 5,
@@ -35,7 +45,7 @@ export default function CalculMarge() {
   const [m, setM] = useState(VIDE('ETTI'))
   const [exemple, setExemple] = useState(null)
   // paramètres enregistrés (direction) : taux par structure + catalogue EPI
-  const [config, setConfig] = useState({ params: PARAMS_DEFAUT, epi: { ETTI: EPI_DEFAUT, AI: EPI_DEFAUT }, updated_at: null, updated_by: null })
+  const [config, setConfig] = useState({ params: PARAMS_DEFAUT, epi: normEpi(EPI_DEFAUT), updated_at: null, updated_by: null })
   const [configName, setConfigName] = useState('')
   const [saveMsg, setSaveMsg] = useState('')
 
@@ -50,7 +60,7 @@ export default function CalculMarge() {
   const set = (k, v) => setM(s => ({ ...s, [k]: v }))
   // changement de structure : un équipement absent du nouveau catalogue devient « Autre » avec son nom et son prix
   const changerStructure = (st) => setM(s => {
-    const ancien = config.epi[s.structure] || [], nouveau = config.epi[st] || []
+    const ancien = catalogueDe(config.epi, s.structure), nouveau = catalogueDe(config.epi, st)
     const epis = s.epis.map(l => {
       if (l.choix === AUTRE || nouveau.some(e => e.nom === l.choix)) return l
       const e = ancien.find(x => x.nom === l.choix)
@@ -59,7 +69,7 @@ export default function CalculMarge() {
     return { ...s, structure: st, epis }
   })
   const params = config.params[m.structure] || PARAMS_DEFAUT[m.structure]
-  const catalogue = config.epi[m.structure] || []
+  const catalogue = catalogueDe(config.epi, m.structure)
 
   // EPI : prix du catalogue, ou prix saisi pour « Autre »
   const epiLignes = m.epis.map(l => {
@@ -77,11 +87,10 @@ export default function CalculMarge() {
 
   // ---- édition des paramètres (direction) ----
   const setParam = (st, k, v) => setConfig(c => ({ ...c, params: { ...c.params, [st]: { ...c.params[st], [k]: v } } }))
-  const setEpi = (st, i, k, v) => setConfig(c => ({ ...c, epi: { ...c.epi, [st]: c.epi[st].map((e, j) => j === i ? { ...e, [k]: v } : e) } }))
+  const setEpi = (i, k, v) => setConfig(c => ({ ...c, epi: c.epi.map((e, j) => j === i ? { ...e, [k]: v } : e) }))
   async function saveConfig() {
     setSaveMsg('')
-    const clean = (l) => (l || []).filter(e => (e.nom || '').trim()).map(e => ({ nom: e.nom.trim(), prix: Number(e.prix) || 0 }))
-    const epi = { ETTI: clean(config.epi.ETTI), AI: clean(config.epi.AI) }
+    const epi = config.epi.filter(e => (e.nom || '').trim()).map(e => ({ nom: e.nom.trim(), actif_ai: !!e.actif_ai, prix_ai: Number(e.prix_ai) || 0, actif_etti: !!e.actif_etti, prix_etti: Number(e.prix_etti) || 0 }))
     const { error } = await supabase.from('marge_config').upsert({ id: 1, params: config.params, epi, updated_at: new Date().toISOString(), updated_by: profile.id })
     if (error) { setSaveMsg(`Échec : ${error.message}`); return }
     setConfig(c => ({ ...c, epi, updated_at: new Date().toISOString(), updated_by: profile.id })); setConfigName(profile.full_name); setSaveMsg('Paramètres enregistrés')
@@ -185,21 +194,33 @@ export default function CalculMarge() {
                       <Field label="ICP" value={config.params[st].icp} onChange={v => setParam(st, 'icp', v)} step="0.1" suffix="%" />
                       <Field label="Charges patronales effectives" value={config.params[st].charges} onChange={v => setParam(st, 'charges', v)} step="0.1" suffix="%" />
                     </div>
-                    <div className="mt-3">
-                      <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-gray-700">Catalogue des EPI {st} (prix HT)</p><button onClick={() => setConfig(c => ({ ...c, epi: { ...c.epi, [st]: [...c.epi[st], { nom: '', prix: 0 }] } }))} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
-                      <div className="space-y-1.5">
-                        {config.epi[st].map((e, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <input value={e.nom} onChange={ev => setEpi(st, i, 'nom', ev.target.value)} placeholder="Équipement" className="input-field text-sm flex-1" />
-                            <input type="number" step="0.01" value={e.prix} onChange={ev => setEpi(st, i, 'prix', Number(ev.target.value))} className="input-field text-sm w-24" /><span className="text-xs text-gray-500">€</span>
-                            <button onClick={() => setConfig(c => ({ ...c, epi: { ...c.epi, [st]: c.epi[st].filter((_, j) => j !== i) } }))} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
-                          </div>
-                        ))}
-                        {config.epi[st].length === 0 && <p className="text-xs text-gray-400">Catalogue vide.</p>}
-                      </div>
-                    </div>
                   </div>
                 ))}
+                <div>
+                  <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-gray-700">Catalogue des EPI (prix HT) <span className="font-normal text-gray-400">— cocher pour proposer l'article dans la structure</span></p><button onClick={() => setConfig(c => ({ ...c, epi: [...c.epi, { nom: '', actif_ai: true, prix_ai: 0, actif_etti: true, prix_etti: 0 }] }))} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead><tr className="text-xs text-gray-500"><th className="text-left font-medium pb-1">Équipement</th><th className="font-medium pb-1 px-2">AI</th><th className="font-medium pb-1 px-2">ETTI</th><th></th></tr></thead>
+                      <tbody>
+                        {config.epi.map((e, i) => (
+                          <tr key={i}>
+                            <td className="py-1 pr-2"><input value={e.nom} onChange={ev => setEpi(i, 'nom', ev.target.value)} placeholder="Équipement" className="input-field text-sm w-full min-w-[160px]" /></td>
+                            {['ai', 'etti'].map(k => (
+                              <td key={k} className="py-1 px-2">
+                                <div className={`flex items-center gap-1.5 rounded-lg px-1.5 ${e[`actif_${k}`] ? '' : 'opacity-40'}`}>
+                                  <input type="checkbox" checked={!!e[`actif_${k}`]} onChange={ev => setEpi(i, `actif_${k}`, ev.target.checked)} className="accent-germa-700" title={`Proposer en ${k.toUpperCase()}`} />
+                                  <input type="number" step="0.01" value={e[`prix_${k}`]} disabled={!e[`actif_${k}`]} onChange={ev => setEpi(i, `prix_${k}`, Number(ev.target.value))} className="input-field text-sm w-20" /><span className="text-xs text-gray-500">€</span>
+                                </div>
+                              </td>
+                            ))}
+                            <td className="py-1"><button onClick={() => setConfig(c => ({ ...c, epi: c.epi.filter((_, j) => j !== i) }))} className="p-1.5 text-gray-400 hover:text-red-600" title="Supprimer l'article des deux structures"><Trash2 size={14} /></button></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {config.epi.length === 0 && <p className="text-xs text-gray-400">Catalogue vide.</p>}
+                  </div>
+                </div>
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
                   <span className="text-xs text-gray-500">{saveMsg || (config.updated_at ? `Enregistrés le ${formatDateTime(config.updated_at)}${configName ? ` par ${configName}` : ''}` : 'Valeurs par défaut, jamais enregistrées')}</span>
                   <button onClick={saveConfig} className="btn-primary text-sm flex items-center gap-1.5"><Save size={14} /> Enregistrer les paramètres</button>
