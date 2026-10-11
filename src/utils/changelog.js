@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.47.0-démo'
+export const APP_DISPLAY_VERSION = '2.48.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.48.0-démo',
+    date: '2026-10-11',
+    changes: ['Calcul de marge : un catalogue d\'EPI distinct pour l\'AI et pour l\'ETTI — modifier ou supprimer un équipement dans l\'un ne touche plus l\'autre'],
+  },
   {
     version: '2.47.0-démo',
     date: '2026-09-26',
