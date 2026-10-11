@@ -14,6 +14,7 @@ const navItems = [
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
   { to: '/historique', icon: History, label: 'Historique' },
+  { to: '/calcul-marge', icon: Calculator, label: 'Calcul de marge' },
   { to: '/presse', icon: Newspaper, label: 'Presse & actus' },
   { to: '/nouveautes-demo', icon: Sparkles, label: 'Nouveautés démo' },
 ]
@@ -22,7 +23,6 @@ const adminItems = [
   { to: '/rapport-mensuel', icon: FileText, label: 'Rapport mensuel' },
   { to: '/reunion-commerciale', icon: Users, label: 'Réunion commerciale' },
   { to: '/revision-base', icon: ListChecks, label: 'Révision de la base' },
-  { to: '/calcul-marge', icon: Calculator, label: 'Calcul de marge' },
   { to: '/admin', icon: Shield, label: 'Administration' },
 ]
 

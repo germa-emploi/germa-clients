@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.50.0-démo'
+export const APP_DISPLAY_VERSION = '2.51.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.51.0-démo',
+    date: '2026-10-11',
+    changes: ['Calcul de marge ouvert aux commerciaux (menu principal) ; les paramètres (taux et catalogue des EPI) restent visibles et modifiables par la direction uniquement'],
+  },
   {
     version: '2.50.0-démo',
     date: '2026-10-11',

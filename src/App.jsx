@@ -62,7 +62,7 @@ export default function App() {
         <Route path="entreprises/:id" element={<EnterpriseDetail />} />
         <Route path="historique" element={<Historique />} />
         <Route path="revision-base" element={<ProtectedRoute adminOnly><RevisionBase /></ProtectedRoute>} />
-        <Route path="calcul-marge" element={<ProtectedRoute adminOnly><CalculMarge /></ProtectedRoute>} />
+        <Route path="calcul-marge" element={<CalculMarge />} />
         <Route path="nouveautes-demo" element={<NouveautesDemo />} />
         <Route path="presse" element={<Presse />} />
         <Route path="rapport-mensuel" element={<ProtectedRoute adminOnly><RapportMensuel /></ProtectedRoute>} />
