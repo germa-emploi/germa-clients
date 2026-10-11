@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.30.1'
+export const APP_DISPLAY_VERSION = '2.30.2'
 
 export const CHANGELOG = [
+  {
+    version: '2.30.2',
+    date: '2026-10-11',
+    changes: ['Calcul de marge : la liste des équipements est vide au départ ; le bouton « Ajouter un équipement » crée une ligne sans article présélectionné et descend à mesure que la liste s\'allonge'],
+  },
   {
     version: '2.30.1',
     date: '2026-10-11',
