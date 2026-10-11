@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.33.0'
+export const APP_DISPLAY_VERSION = '2.33.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.33.1',
+    date: '2026-10-11',
+    changes: ['Révision de la base : le filtre ne propose que les personnes ayant au moins un client ou prospect assigné'],
+  },
   {
     version: '2.33.0',
     date: '2026-10-11',
