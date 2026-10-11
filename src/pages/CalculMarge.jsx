@@ -160,7 +160,7 @@ export default function CalculMarge() {
           </div>
 
           <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-900">Équipements fournis (EPI)</h3><button onClick={() => ajouter('epis', { choix: catalogue[0]?.nom || AUTRE, qte: 1, label: '', prix: 0 })} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter un équipement</button></div>
+            <h3 className="text-sm font-semibold text-gray-900">Équipements fournis (EPI)</h3>
             {m.epis.length === 0 && <p className="text-xs text-gray-400">Aucun équipement fourni.</p>}
             {epiLignes.map((l, i) => (
               <div key={i} className="flex items-center gap-2 flex-wrap">
@@ -178,6 +178,7 @@ export default function CalculMarge() {
                 <button onClick={() => retirer('epis', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
             ))}
+            <button onClick={() => ajouter('epis', { choix: catalogue[0]?.nom || AUTRE, qte: 1, label: '', prix: 0 })} className="w-full flex items-center justify-center py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:text-germa-700 hover:border-germa-400 hover:bg-germa-50" title="Ajouter un équipement"><Plus size={16} /></button>
             {m.epis.length > 0 && <label className="flex items-center gap-2 text-sm text-gray-700 pt-1"><input type="checkbox" checked={m.equipementRefacture} onChange={e => set('equipementRefacture', e.target.checked)} className="accent-germa-700" /> Refacturés au client (au réel) — total {eur(equipement)}</label>}
           </div>
 
@@ -197,7 +198,7 @@ export default function CalculMarge() {
                   </div>
                 ))}
                 <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-gray-700">Catalogue des EPI (prix HT) <span className="font-normal text-gray-400">— cocher pour proposer l'article dans la structure</span></p><button onClick={() => setConfig(c => ({ ...c, epi: [...c.epi, { nom: '', actif_ai: true, prix_ai: 0, actif_etti: true, prix_etti: 0 }] }))} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
+                  <div className="flex items-center justify-between mb-2"><p className="text-xs font-semibold text-gray-700">Catalogue des EPI (prix HT) <span className="font-normal text-gray-400">— cocher pour proposer l'article dans la structure</span></p></div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead><tr className="text-xs text-gray-500"><th className="text-left font-medium pb-1">Équipement</th><th className="font-medium pb-1 px-2">AI</th><th className="font-medium pb-1 px-2">ETTI</th><th></th></tr></thead>
@@ -216,9 +217,9 @@ export default function CalculMarge() {
                             <td className="py-1"><button onClick={() => setConfig(c => ({ ...c, epi: c.epi.filter((_, j) => j !== i) }))} className="p-1.5 text-gray-400 hover:text-red-600" title="Supprimer l'article des deux structures"><Trash2 size={14} /></button></td>
                           </tr>
                         ))}
+                        <tr><td colSpan={4} className="pt-1"><button onClick={() => setConfig(c => ({ ...c, epi: [...c.epi, { nom: '', actif_ai: true, prix_ai: 0, actif_etti: true, prix_etti: 0 }] }))} className="w-full flex items-center justify-center py-1.5 rounded-lg border border-dashed border-gray-300 text-gray-400 hover:text-germa-700 hover:border-germa-400 hover:bg-germa-50" title="Ajouter un équipement au catalogue"><Plus size={16} /></button></td></tr>
                       </tbody>
                     </table>
-                    {config.epi.length === 0 && <p className="text-xs text-gray-400">Catalogue vide.</p>}
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-3 pt-2 border-t border-gray-100">
