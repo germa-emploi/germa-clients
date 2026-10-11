@@ -150,7 +150,9 @@ export default function RevisionBase() {
   const sansSecteurF = sansSecteur.filter(match)
   const villesF = filtreCom ? villes.map(g => ({ ...g, ents: g.ents.filter(match) })).filter(g => g.ents.length) : villes
   const incompletesF = incompletes.filter(x => match(x.e))
-  const commerciaux = profiles.filter(p => p.is_active && !isHiddenAccount(p)).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+  // seulement les personnes qui ont au moins une entreprise assignée
+  const assignes = new Set(ents.map(e => e.assigned_to).filter(Boolean))
+  const commerciaux = profiles.filter(p => assignes.has(p.id) && !isHiddenAccount(p)).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
 
   const counters = [
     { key: 'doublons', label: 'Doublons probables', n: doublonsF.length, icon: Copy },
