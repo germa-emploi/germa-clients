@@ -42,6 +42,7 @@ export default function RevisionBase() {
   const [tab, setTab] = useState('doublons')
   const [showHistory, setShowHistory] = useState(false)
   const [msg, setMsg] = useState('')
+  const [filtreCom, setFiltreCom] = useState('') // '' = tous, '__none' = sans commercial, sinon id du commercial
 
   async function load() {
     setLoading(true)
@@ -143,11 +144,19 @@ export default function RevisionBase() {
     setDecisions(list => list.map(x => x.id === d.id ? { ...x, revoked_at: new Date().toISOString(), revoked_by: profile.id } : x))
   }
 
+  // filtre par commercial assigné (une paire de doublons compte si l'une des deux fiches correspond)
+  const match = (e) => !filtreCom || (filtreCom === '__none' ? !e.assigned_to : e.assigned_to === filtreCom)
+  const doublonsF = filtreCom ? doublons.filter(p => match(p.a) || match(p.b)) : doublons
+  const sansSecteurF = sansSecteur.filter(match)
+  const villesF = filtreCom ? villes.map(g => ({ ...g, ents: g.ents.filter(match) })).filter(g => g.ents.length) : villes
+  const incompletesF = incompletes.filter(x => match(x.e))
+  const commerciaux = profiles.filter(p => p.is_active && !isHiddenAccount(p)).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))
+
   const counters = [
-    { key: 'doublons', label: 'Doublons probables', n: doublons.length, icon: Copy },
-    { key: 'secteurs', label: 'Secteurs manquants', n: sansSecteur.length, icon: Tags },
-    { key: 'villes', label: 'Villes à corriger', n: communes === null ? '…' : villes.reduce((s, g) => s + g.ents.length, 0), icon: MapPin },
-    { key: 'fiches', label: 'Fiches incomplètes', n: incompletes.length, icon: FileWarning },
+    { key: 'doublons', label: 'Doublons probables', n: doublonsF.length, icon: Copy },
+    { key: 'secteurs', label: 'Secteurs manquants', n: sansSecteurF.length, icon: Tags },
+    { key: 'villes', label: 'Villes à corriger', n: communes === null ? '…' : villesF.reduce((s, g) => s + g.ents.length, 0), icon: MapPin },
+    { key: 'fiches', label: 'Fiches incomplètes', n: incompletesF.length, icon: FileWarning },
   ]
 
   if (loading) return <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-germa-700 border-t-transparent rounded-full animate-spin" /></div>
@@ -156,7 +165,14 @@ export default function RevisionBase() {
       <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-germa-700"><ArrowLeft size={16} /> Retour au tableau de bord</button>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div><h1 className="font-display font-bold text-2xl text-gray-900">Révision de la base</h1><p className="text-gray-500 text-sm mt-1">Contrôles automatiques de la qualité des fiches. Chaque correction est journalisée sur la fiche.</p></div>
-        <button onClick={() => setShowHistory(true)} className="btn-secondary flex items-center gap-2 text-sm self-start"><History size={16} /> Historique des décisions</button>
+        <div className="flex items-center gap-2 self-start">
+          <select value={filtreCom} onChange={e => setFiltreCom(e.target.value)} className={`select-field text-sm w-52 ${filtreCom ? 'ring-2 ring-germa-500' : ''}`}>
+            <option value="">Tous les commerciaux</option>
+            {commerciaux.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+            <option value="__none">Sans commercial assigné</option>
+          </select>
+          <button onClick={() => setShowHistory(true)} className="btn-secondary flex items-center gap-2 text-sm"><History size={16} /> Historique des décisions</button>
+        </div>
       </div>
       {msg && <div className="text-sm bg-gray-900 text-white rounded-xl px-4 py-2">{msg}</div>}
 
@@ -170,21 +186,21 @@ export default function RevisionBase() {
         ))}
       </div>
 
-      {tab === 'doublons' && <Doublons pairs={doublons} sectorName={sectorName} profName={profName} actionCount={actionCount}
+      {tab === 'doublons' && <Doublons pairs={doublonsF} sectorName={sectorName} profName={profName} actionCount={actionCount}
         onYes={async (p) => { if (await decide({ kind: 'doublon', entity_a: p.a.id, entity_b: p.b.id, name_a: p.a.name, name_b: p.b.name, decision: 'doublon' })) navigate(`/entreprises/${p.a.id}?fusion=${p.b.id}`) }}
         onNo={async (p) => { if (await decide({ kind: 'doublon', entity_a: p.a.id, entity_b: p.b.id, name_a: p.a.name, name_b: p.b.name, decision: 'pas_doublon' })) flash(`« ${p.a.name} » / « ${p.b.name} » : marqué comme différent (annulable dans l'historique)`) }} />}
 
-      {tab === 'secteurs' && <Secteurs list={sansSecteur} sectors={sectors} profName={profName}
+      {tab === 'secteurs' && <Secteurs list={sansSecteurF} sectors={sectors} profName={profName}
         onSet={async (e, sid) => { if (await updateEnt(e, { sector_id: sid }, `secteur → ${sectorName(sid)}`)) flash(`${e.name} : secteur « ${sectorName(sid)} »`) }} />}
 
       {tab === 'villes' && (communes === null ? <div className="card p-8 text-center text-sm text-gray-400">Chargement de la liste officielle des communes…</div>
         : communes.length === 0 ? <div className="card p-8 text-center text-sm text-red-600">Liste officielle des communes indisponible (geo.api.gouv.fr). Réessayez plus tard.</div>
-        : <Villes groups={villes} communes={communes}
+        : <Villes groups={villesF} communes={communes}
           onApply={async (g, nom, dep) => { let ok = 0; for (const e of g.ents) { const f = { city: nom }; if (dep && e.department !== dep) f.department = dep; if (await updateEnt(e, f, `ville « ${e.city} » → « ${nom} »${f.department ? ` (${dep})` : ''}`)) ok++ } flash(`${ok} fiche${ok > 1 ? 's' : ''} corrigée${ok > 1 ? 's' : ''} : ${nom}`) }}
           onIgnore={async (g) => { for (const e of g.ents) await decide({ kind: 'ville', entity_a: e.id, name_a: e.name, decision: 'ignore', note: `ville « ${e.city} » conservée` }); flash(`« ${g.city} » conservée telle quelle (annulable dans l'historique)`) }}
-          onApplyAllSpelling={async () => { const safe = villes.filter(g => g.issue === 'orthographe'); let n = 0; for (const g of safe) for (const e of g.ents) { const f = { city: g.sugg.nom }; if (!e.department) f.department = g.sugg.dep; if (await updateEnt(e, f, `ville « ${e.city} » → « ${g.sugg.nom} »`)) n++ } flash(`${n} fiches harmonisées`) }} />)}
+          onApplyAllSpelling={async () => { const safe = villesF.filter(g => g.issue === 'orthographe'); let n = 0; for (const g of safe) for (const e of g.ents) { const f = { city: g.sugg.nom }; if (!e.department) f.department = g.sugg.dep; if (await updateEnt(e, f, `ville « ${e.city} » → « ${g.sugg.nom} »`)) n++ } flash(`${n} fiches harmonisées`) }} />)}
 
-      {tab === 'fiches' && <Fiches list={incompletes} profiles={profiles.filter(p => p.is_active && !isHiddenAccount(p))} navigate={navigate}
+      {tab === 'fiches' && <Fiches list={incompletesF} profiles={profiles.filter(p => p.is_active && !isHiddenAccount(p))} navigate={navigate}
         onSave={async (e, f) => { const label = Object.entries(f).map(([k, v]) => `${{ phone: 'téléphone', email: 'e-mail', department: 'département', assigned_to: 'commercial' }[k]} → ${k === 'assigned_to' ? profName(v) : v}`).join(', '); if (await updateEnt(e, f, label)) flash(`${e.name} : complétée`) }}
         onIgnore={async (e) => { if (await decide({ kind: 'fiche', entity_a: e.id, name_a: e.name, decision: 'ignore', note: 'fiche incomplète acceptée' })) flash(`${e.name} : ignorée (annulable dans l'historique)`) }} />}
 

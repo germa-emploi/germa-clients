@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.32.0'
+export const APP_DISPLAY_VERSION = '2.33.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.33.0',
+    date: '2026-10-11',
+    changes: ['Révision de la base : filtre par commercial assigné (ou « Sans commercial ») appliqué aux compteurs et aux quatre listes ; un doublon apparaît si l\'une des deux fiches correspond'],
+  },
   {
     version: '2.32.0',
     date: '2026-10-11',
