@@ -14,11 +14,11 @@ const navItems = [
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
   { to: '/historique', icon: History, label: 'Historique' },
+  { to: '/calcul-marge', icon: Calculator, label: 'Calcul de marge' },
 ]
 
 const adminItems = [
   { to: '/revision-base', icon: ListChecks, label: 'Révision de la base' },
-  { to: '/calcul-marge', icon: Calculator, label: 'Calcul de marge' },
   { to: '/admin', icon: Shield, label: 'Administration' },
 ]
 
