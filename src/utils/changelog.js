@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.52.1-démo'
+export const APP_DISPLAY_VERSION = '2.53.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.53.0-démo',
+    date: '2026-10-16',
+    changes: ['Calcul de marge : primes et indemnités par heure ou par jour (le montant « pour la mission » est retiré) ; le nombre de jours est déduit de la durée en journées pleines de 7 h (36 h → 5 jours), au moins 1 jour'],
+  },
   {
     version: '2.52.1-démo',
     date: '2026-10-11',
