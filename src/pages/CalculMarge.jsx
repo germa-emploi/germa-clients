@@ -58,6 +58,9 @@ export default function CalculMarge() {
   }, [])
 
   const set = (k, v) => setM(s => ({ ...s, [k]: v }))
+  // nombre de jours pour les montants par jour : journées pleines de 7 h (36 h → 5 j, 42 h → 6 j), au moins 1 jour
+  const joursDe = (h) => { const x = Number(h) || 0; return x > 0 ? Math.max(1, Math.floor(x / 7)) : 0 }
+  const jours = joursDe(m.heuresNormales)
   // changement de structure : un équipement absent du nouveau catalogue devient « Autre » avec son nom et son prix
   const changerStructure = (st) => setM(s => {
     const ancien = catalogueDe(config.epi, s.structure), nouveau = catalogueDe(config.epi, st)
@@ -78,18 +81,17 @@ export default function CalculMarge() {
     return { ...l, prixUnit: prix, total: prix * (Number(l.qte) || 0), nom: l.choix === AUTRE ? (l.label || 'Autre') : l.choix }
   })
   const equipement = epiLignes.reduce((s, l) => s + l.total, 0)
-  const r = useMemo(() => calculerMarge({ ...m, equipement, ifm: params.ifm, icp: params.icp, charges: params.charges }), [m, equipement, params])
+  const r = useMemo(() => calculerMarge({ ...m, jours, equipement, ifm: params.ifm, icp: params.icp, charges: params.charges }), [m, jours, equipement, params])
   const seuilHeures = useMemo(() => {
     if (!(equipement > 0)) return null
     const base = { ...m, equipement, ifm: params.ifm, icp: params.icp, charges: params.charges }
-    const fixe = calculerMarge({ ...base, heuresNormales: 0 }).marge
-    const parHeure = calculerMarge({ ...base, heuresNormales: 1 }).marge - fixe
-    if (fixe >= 0) return { ok: true, heures: 0 }
-    if (parHeure <= 0) return { jamais: true }
-    return { heures: Math.ceil(-fixe / parHeure) }
+    const margeA = (h) => calculerMarge({ ...base, heuresNormales: h, jours: joursDe(h) }).marge
+    if (margeA(0) >= 0) return { ok: true, heures: 0 }
+    for (let h = 1; h <= 2000; h++) if (margeA(h) >= 0) return { heures: h }
+    return { jamais: true }
   }, [m, equipement, params])
 
-  const charger = (ex) => { setM({ ...VIDE(ex.structure), ...ex, heuresSup25: 0, heuresSup50: 0, heuresNuit: 0, jours: 0, primes: (ex.primes || []).filter(x => x.unite !== 'jour'), indemnites: (ex.indemnites || []).filter(x => x.unite !== 'jour'), epis: [] }); setExemple({ ...ex, nom: ex.structure === 'AI' ? 'Exemple AI — 40 h' : 'Exemple ETTI — 35 h avec prime de 13e mois' }) }
+  const charger = (ex) => { setM({ ...VIDE(ex.structure), ...ex, heuresSup25: 0, heuresSup50: 0, heuresNuit: 0, jours: 0, epis: [] }); setExemple({ ...ex, nom: ex.structure === 'AI' ? 'Exemple AI — 40 h' : 'Exemple ETTI — 35 h avec prime de 13e mois' }) }
   const majListe = (k, i, champ, v) => setM(s => ({ ...s, [k]: s[k].map((x, j) => j === i ? { ...x, [champ]: v } : x) }))
   const ajouter = (k, x) => setM(s => ({ ...s, [k]: [...s[k], x] }))
   const retirer = (k, i) => setM(s => ({ ...s, [k]: s[k].filter((_, j) => j !== i) }))
@@ -132,7 +134,7 @@ export default function CalculMarge() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Taux horaire brut" value={m.tauxHoraire} onChange={v => set('tauxHoraire', v)} suffix="€/h" />
               <Field label="Coefficient" value={m.coef} onChange={v => set('coef', v)} step="0.01" />
-              <Field label="Durée de la mission" value={m.heuresNormales} onChange={v => set('heuresNormales', v)} step="0.5" suffix="heures" />
+              <Field label="Durée de la mission" value={m.heuresNormales} onChange={v => set('heuresNormales', v)} step="0.5" suffix="heures" hint={jours ? `soit ${jours} jour${jours > 1 ? 's' : ''} de 7 h pour les montants par jour` : undefined} />
             </div>
           </div>
 
@@ -143,20 +145,20 @@ export default function CalculMarge() {
               <div key={i} className="flex items-center gap-2">
                 <input value={p.label} onChange={e => majListe('primes', i, 'label', e.target.value)} placeholder="Libellé" className="input-field text-sm flex-1" />
                 <input type="number" step="0.01" value={p.montant} onChange={e => majListe('primes', i, 'montant', Number(e.target.value))} className="input-field text-sm w-24" />
-                <select value={p.unite} onChange={e => majListe('primes', i, 'unite', e.target.value)} className="select-field text-sm w-36"><option value="heure">€ / heure</option><option value="forfait">€ pour la mission</option></select>
+                <select value={p.unite} onChange={e => majListe('primes', i, 'unite', e.target.value)} className="select-field text-sm w-36"><option value="heure">€ / heure</option><option value="jour">€ / jour</option></select>
                 <button onClick={() => retirer('primes', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
             ))}
           </div>
 
           <div className="card p-4 space-y-2">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-900">Indemnités non soumises <span className="font-normal text-gray-400">— sans charges</span></h3><button onClick={() => ajouter('indemnites', { label: '', montant: 0, unite: 'forfait', refact: 'reel' })} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
+            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold text-gray-900">Indemnités non soumises <span className="font-normal text-gray-400">— sans charges</span></h3><button onClick={() => ajouter('indemnites', { label: '', montant: 0, unite: 'jour', refact: 'reel' })} className="text-xs text-germa-700 flex items-center gap-1"><Plus size={13} /> Ajouter</button></div>
             {m.indemnites.length === 0 && <p className="text-xs text-gray-400">Aucune (panier, transport, indemnités kilométriques…)</p>}
             {m.indemnites.map((p, i) => (
               <div key={i} className="flex items-center gap-2 flex-wrap">
                 <input value={p.label} onChange={e => majListe('indemnites', i, 'label', e.target.value)} placeholder="Libellé" className="input-field text-sm flex-1 min-w-[140px]" />
                 <input type="number" step="0.01" value={p.montant} onChange={e => majListe('indemnites', i, 'montant', Number(e.target.value))} className="input-field text-sm w-24" />
-                <select value={p.unite} onChange={e => majListe('indemnites', i, 'unite', e.target.value)} className="select-field text-sm w-32"><option value="heure">€ / heure</option><option value="forfait">€ pour la mission</option></select>
+                <select value={p.unite} onChange={e => majListe('indemnites', i, 'unite', e.target.value)} className="select-field text-sm w-32"><option value="heure">€ / heure</option><option value="jour">€ / jour</option></select>
                 <select value={p.refact} onChange={e => majListe('indemnites', i, 'refact', e.target.value)} className="select-field text-sm w-36"><option value="reel">refacturée au réel</option><option value="coef">au coefficient</option><option value="non">non refacturée</option></select>
                 <button onClick={() => retirer('indemnites', i)} className="p-1.5 text-gray-400 hover:text-red-600"><Trash2 size={14} /></button>
               </div>
