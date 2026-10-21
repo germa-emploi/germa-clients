@@ -108,9 +108,11 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 
 ## Version du Worker
 
-La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version ; 1.2.0 = briefing de réunion commerciale (`/reunion`), calcul des chiffres sur une période quelconque.
+La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version ; 1.2.0 = briefing de réunion commerciale (`/reunion`), calcul des chiffres sur une période quelconque ; 1.2.1 = chaîne de nuit robuste (rapport du mois écoulé en premier et rattrapé chaque nuit tant qu'il manque, chaque étape isolée).
 
 ## Pièges connus
+
+- **Clé API Anthropic** : la clé `germaclients-ia` créée le 18/09/2026 avait une validité de 30 jours et a expiré le 18/10/2026, coupant toutes les fonctions IA (« invalid x-api-key »). Nouvelle clé créée le 23/10/2026 ; vérifier son échéance dans la console Anthropic (API Keys, colonne Expires). Coût constaté sur le premier mois : 2,50 $.
 
 - Sonnet 5 refuse le paramètre `temperature` (« deprecated for this model ») : ne pas l'envoyer. La régularité du rapport mensuel repose sur la consigne et le contrôle des titres.
 

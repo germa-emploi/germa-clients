@@ -604,19 +604,22 @@ async function checkQuota(env, userId) {
 export default {
   // Déclencheur planifié (Cloudflare → Settings → Triggers → Cron) : notation des fiches modifiées dans la journée
   async scheduled(event, env, ctx) {
+    // Chaque étape est isolée : une erreur est journalisée et n'empêche pas les suivantes.
+    const etape = async (nom, fn) => { try { console.log(`${nom} :`, JSON.stringify(await fn())) } catch (err) { console.log(`${nom} — ERREUR :`, err.message) } }
     ctx.waitUntil((async () => {
-      const r1 = await nightlyScoring(env); console.log('Notation nocturne :', JSON.stringify(r1))
-      const r2 = await dailySuggestions(env); console.log('Suggestions du jour :', JSON.stringify(r2))
-      const r3 = await veille(env); console.log('Veille presse :', JSON.stringify(r3))
-      const r4 = await reopenSuggestions(env); console.log('Relances sans suite / refus :', JSON.stringify(r4))
-      const r5 = await urgenceRelances(env); console.log('Urgence des relances :', JSON.stringify(r5))
-      const paris = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
-      if (paris.getDate() === 1) {
+      // 1. Rapport du mois écoulé, en premier ; rattrapé n'importe quelle nuit s'il manque encore
+      await etape('Rapport mensuel', async () => {
+        const paris = new Date(new Date().toLocaleString('en-US', { timeZone: 'Europe/Paris' }))
         const prevMonth = new Date(paris.getFullYear(), paris.getMonth() - 1, 1)
         const mm = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
         const exists = await sb(env, `ia_rapports?select=month&month=eq.${mm}`, { headers: { Prefer: '' } })
-        if (!exists?.length) { const r6 = await generateRapport(env, { month: mm }); console.log('Rapport mensuel :', JSON.stringify(r6)) }
-      }
+        return exists?.length ? { month: mm, deja: true } : await generateRapport(env, { month: mm })
+      })
+      await etape('Notation nocturne', () => nightlyScoring(env))
+      await etape('Suggestions du jour', () => dailySuggestions(env))
+      await etape('Relances sans suite / refus', () => reopenSuggestions(env))
+      await etape('Urgence des relances', () => urgenceRelances(env))
+      await etape('Veille presse', () => veille(env))
     })())
   },
 
@@ -756,4 +759,4 @@ export default {
 // VERSION DU WORKER — à incrémenter à chaque modification
 // Vérification : https://germaclients-ia.old-cake-a2b6.workers.dev/version
 // ============================================================
-const WORKER_VERSION = '1.2.0'
+const WORKER_VERSION = '1.2.1'
