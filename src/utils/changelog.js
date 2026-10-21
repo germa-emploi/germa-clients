@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.53.0-démo'
+export const APP_DISPLAY_VERSION = '2.54.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.54.0-démo',
+    date: '2026-10-23',
+    changes: ['Tableau de bord : sélecteur « 67 + 68 / 67 / 68 » sur les graphiques Activité & Conversions, Résultats des actions, Types d\'échange et Entreprises par secteur'],
+  },
   {
     version: '2.53.0-démo',
     date: '2026-10-16',

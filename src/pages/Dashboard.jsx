@@ -22,6 +22,16 @@ const PIE_TYPE = { 'Physique': '#2D6A4F', 'Téléphonique': '#0ea5e9', 'Mail': '
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre']
 const MONTHS_SHORT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.']
 
+function DepSelect({ value, onChange }) {
+  return (
+    <div className="flex items-center rounded-lg border border-gray-200 overflow-hidden text-[11px] font-medium" onClick={e => e.stopPropagation()}>
+      {[['', '67 + 68'], ['67', '67'], ['68', '68']].map(([v, l]) => (
+        <button key={v || 'all'} onClick={e => { e.stopPropagation(); onChange(v) }} className={`px-2 py-1 ${value === v ? 'bg-germa-700 text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}>{l}</button>
+      ))}
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const { profile, isDirection } = useAuth()
   const navigate = useNavigate()
@@ -78,6 +88,11 @@ export default function Dashboard() {
   const kpiActActions = isDirection ? actions : actions.filter(a => a.performed_by === profile?.id)
   const kpiActCount = kpiActActions.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === kpiActYear && d.getMonth() === kpiActMonth }).length
 
+  const [depChart, setDepChart] = useState({ activity: '', results: '', types: '', sector: '' })
+  const setDep = (k) => (v) => setDepChart(d => ({ ...d, [k]: v }))
+  const entDept = useMemo(() => Object.fromEntries(enterprises.map(e => [e.id, e.department])), [enterprises])
+  const actDep = (a, dep) => !dep || entDept[a.enterprise_id] === dep
+  const entDep = (e, dep) => !dep || e.department === dep
   const stats = useMemo(() => {
     const thisYear = now.getFullYear()
     const thisMonth = now.getMonth()
@@ -130,14 +145,27 @@ export default function Dashboard() {
     return { totalEnterprises, prospects, clients, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances }
   }, [enterprises, actions, profiles, sectors, isDirection, profile?.id])
 
+  // Données des graphiques filtrées par département (sélecteur sur chaque carte)
+  const pieFiltre = (champ, palette, dep) => {
+    const y = now.getFullYear(), counts = {}
+    actions.forEach(a => { if (new Date(a.performed_at).getFullYear() === y && actDep(a, dep) && a[champ]) counts[a[champ]] = (counts[a[champ]] || 0) + 1 })
+    return Object.entries(counts).map(([name, value]) => ({ name, value, color: palette[name] || '#9ca3af' })).sort((a, b) => b.value - a.value)
+  }
+  const resultDataF = useMemo(() => pieFiltre('result', PIE_RESULT, depChart.results), [actions, entDept, depChart.results])
+  const typeDataF = useMemo(() => pieFiltre('action_type', PIE_TYPE, depChart.types), [actions, entDept, depChart.types])
+  const bySectorF = useMemo(() => sectors.map(sc => {
+    const sEnts = enterprises.filter(e => e.sector_id === sc.id && entDep(e, depChart.sector))
+    return { name: sc.name.length > 15 ? sc.name.substring(0, 14) + '…' : sc.name, total: sEnts.length, clients: sEnts.filter(e => e.status === 'client').length, prospects: sEnts.filter(e => e.status === 'prospect').length }
+  }).filter(x => x.total > 0).sort((a, b) => b.total - a.total), [enterprises, sectors, depChart.sector])
+
   // Activity chart data builder
-  function buildMonthlyData(startYear, startMonth, endYear, endMonth) {
+  function buildMonthlyData(startYear, startMonth, endYear, endMonth, dep = '') {
     const data = []
     let y = startYear, m = startMonth
     while (y < endYear || (y === endYear && m <= endMonth)) {
       const label = `${MONTHS_SHORT[m]} ${String(y).slice(2)}`
-      const mActions = actions.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === y && d.getMonth() === m })
-      const mConv = enterprises.filter(e => { if (!e.converted_at) return false; const d = new Date(e.converted_at); return d.getFullYear() === y && d.getMonth() === m }).length
+      const mActions = actions.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === y && d.getMonth() === m && actDep(a, dep) })
+      const mConv = enterprises.filter(e => { if (!e.converted_at || !entDep(e, dep)) return false; const d = new Date(e.converted_at); return d.getFullYear() === y && d.getMonth() === m }).length
       const taux = mActions.length > 0 ? parseFloat(((mConv / mActions.length) * 100).toFixed(1)) : 0
       data.push({ month: label, actions: mActions.length, conversions: mConv, taux })
       m++; if (m > 11) { m = 0; y++ }
@@ -165,10 +193,10 @@ export default function Dashboard() {
     if (monthsSinceJan2026 > 11) {
       // 12 months sliding
       const start = new Date(thisYear, thisMonth - 11, 1)
-      return buildMonthlyData(start.getFullYear(), start.getMonth(), thisYear, thisMonth)
+      return buildMonthlyData(start.getFullYear(), start.getMonth(), thisYear, thisMonth, depChart.activity)
     }
-    return buildMonthlyData(2026, 0, thisYear, thisMonth)
-  }, [enterprises, actions])
+    return buildMonthlyData(2026, 0, thisYear, thisMonth, depChart.activity)
+  }, [enterprises, actions, depChart.activity])
 
   // Pie data builders for modals
   function buildPieData(type, year, month, isAnnual) {
@@ -267,7 +295,7 @@ export default function Dashboard() {
       <div id="bloc-graphiques" className="scroll-mt-24 card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('activity')}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-semibold text-gray-900 text-sm">📈 Activité & Conversions</h3>
-          <Maximize2 size={16} className="text-gray-400" />
+          <div className="flex items-center gap-2"><DepSelect value={depChart.activity} onChange={setDep('activity')} /><Maximize2 size={16} className="text-gray-400" /></div>
         </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -291,12 +319,12 @@ export default function Dashboard() {
         <div className="card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('results')}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-display font-semibold text-gray-900 text-sm">🎯 Résultats des actions ({now.getFullYear()})</h3>
-            <Maximize2 size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2"><DepSelect value={depChart.results} onChange={setDep('results')} /><Maximize2 size={16} className="text-gray-400" /></div>
           </div>
-          {stats.resultData.length > 0 ? (
+          {resultDataF.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart><Pie data={stats.resultData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false} style={{ fontSize: 10 }}>{stats.resultData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
+                <PieChart><Pie data={resultDataF} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={3} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false} style={{ fontSize: 10 }}>{stats.resultData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
               </ResponsiveContainer>
             </div>
           ) : <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Pas de données</div>}
@@ -304,12 +332,12 @@ export default function Dashboard() {
         <div className="card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('types')}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-display font-semibold text-gray-900 text-sm">📞 Types d'échange ({now.getFullYear()})</h3>
-            <Maximize2 size={16} className="text-gray-400" />
+            <div className="flex items-center gap-2"><DepSelect value={depChart.types} onChange={setDep('types')} /><Maximize2 size={16} className="text-gray-400" /></div>
           </div>
-          {stats.typeData.length > 0 ? (
+          {typeDataF.length > 0 ? (
             <div className="h-48">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart><Pie data={stats.typeData} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false} style={{ fontSize: 11 }}>{stats.typeData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
+                <PieChart><Pie data={typeDataF} cx="50%" cy="50%" innerRadius={40} outerRadius={70} paddingAngle={4} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false} style={{ fontSize: 11 }}>{stats.typeData.map((e, i) => <Cell key={i} fill={e.color} />)}</Pie><Tooltip /></PieChart>
               </ResponsiveContainer>
             </div>
           ) : <div className="h-48 flex items-center justify-center text-gray-400 text-sm">Pas de données</div>}
@@ -319,11 +347,11 @@ export default function Dashboard() {
       {/* Bar charts */}
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-4 sm:p-5">
-          <h3 className="font-display font-semibold text-gray-900 mb-4 text-sm">📂 Entreprises par secteur</h3>
-          {stats.bySector.length > 0 ? (
+          <div className="flex items-center justify-between mb-4"><h3 className="font-display font-semibold text-gray-900 text-sm">📂 Entreprises par secteur</h3><DepSelect value={depChart.sector} onChange={setDep('sector')} /></div>
+          {bySectorF.length > 0 ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats.bySector} layout="vertical" margin={{ left: 10 }}>
+                <BarChart data={bySectorF} layout="vertical" margin={{ left: 10 }}>
                   <XAxis type="number" fontSize={10} /><YAxis type="category" dataKey="name" fontSize={10} width={100} /><Tooltip /><Legend wrapperStyle={{ fontSize: 11 }} />
                   <Bar dataKey="prospects" fill="#3b82f6" stackId="a" name="Prospects" /><Bar dataKey="clients" fill="#22c55e" stackId="a" radius={[0, 4, 4, 0]} name="Clients" />
                 </BarChart>
