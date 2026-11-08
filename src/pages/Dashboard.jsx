@@ -32,7 +32,7 @@ function DepSelect({ value, onChange }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ section = 'tableau' }) {
   const { profile, isDirection, viewId } = useAuth()
   const navigate = useNavigate()
   const [enterprises, setEnterprises] = useState([])
@@ -241,17 +241,18 @@ export default function Dashboard() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div>
-          <h1 className="font-display font-bold text-2xl text-gray-900">Bonjour {profile?.full_name?.split(' ')[0]} 👋</h1>
-          <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de la prospection</p>
+          <h1 className="font-display font-bold text-2xl text-gray-900">{section === 'graphiques' ? '📈 Graphiques' : <>Bonjour {profile?.full_name?.split(' ')[0]} 👋</>}</h1>
+          <p className="text-gray-500 text-sm mt-1">{section === 'graphiques' ? (isDirection ? 'Activité de toute l\'équipe' : 'Vos entreprises et vos actions') : 'Vue d\'ensemble de la prospection'}</p>
         </div>
         <div className="flex items-center gap-2 self-start">
           {(veilleNew.mention + veilleNew.piste) > 0 && <button onClick={() => navigate('/presse')} className="flex items-center gap-2 text-sm font-medium px-3 py-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors">📰 {veilleNew.mention} mention{veilleNew.mention > 1 ? 's' : ''} · {veilleNew.piste} piste{veilleNew.piste > 1 ? 's' : ''}</button>}
         </div>
       </div>
 
+      {section === 'tableau' && (<>
       {/* Navigation rapide */}
       <div className="sticky top-[38px] lg:top-[38px] z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-gray-50/95 backdrop-blur border-b border-gray-100 flex gap-2 overflow-x-auto">
-        {[['chiffres', '📊 Chiffres'], ['graphiques', '📈 Graphiques'], ['relances', '⏰ Relances'], ['jour', '✨ Suggestions'], ['rouvrir', '🔁 Sans suite & refus']].map(([id, label]) => (
+        {[['chiffres', '📊 Chiffres'], ['relances', '⏰ Relances'], ['jour', '✨ Suggestions'], ['rouvrir', '🔁 Sans suite & refus']].map(([id, label]) => (
           <button key={id} onClick={() => document.getElementById(`bloc-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex-shrink-0 text-xs font-medium px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-700 hover:bg-germa-50 hover:border-germa-200">{label}</button>
         ))}
       </div>
@@ -298,6 +299,9 @@ export default function Dashboard() {
       {/* KPI Detail Modal */}
       {kpiModal && <KPIDetailModal type={kpiModal} enterprises={entsK} conversions={convK} lookup={enterprises} actions={actsK} profiles={profiles} onClose={() => setKpiModal(null)} navigate={navigate} availableYears={availableYears} />}
 
+      </>)}
+
+      {section === 'graphiques' && (<>
       {/* Activity & Conversions chart */}
       <div id="bloc-graphiques" className="scroll-mt-24 card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('activity')}>
         <div className="flex items-center justify-between mb-4">
@@ -378,6 +382,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      </>)}
+
+      {section === 'tableau' && (<>
       {/* Entreprises à relancer */}
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
@@ -452,6 +459,8 @@ export default function Dashboard() {
         <ReopenBlock kind="sans_suite" title="Sans suite à relancer" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={viewId} navigate={navigate} />
         <ReopenBlock kind="refus" title="Refus à retenter" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={viewId} navigate={navigate} />
       </div>
+
+      </>)}
 
       {/* Chart modals */}
       {chartModal === 'activity' && <ActivityChartModal actions={actsK} enterprises={convK} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}

@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.56.0-démo'
+export const APP_DISPLAY_VERSION = '2.57.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.57.0-démo',
+    date: '2026-11-08',
+    changes: ['Nouvelle entrée de menu « Graphiques » : les graphiques quittent le tableau de bord pour leur propre page (mêmes sélecteurs 67 / 68 ; un commercial y voit ses propres données)'],
+  },
   {
     version: '2.56.0-démo',
     date: '2026-11-08',
