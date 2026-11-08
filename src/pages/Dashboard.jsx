@@ -84,8 +84,15 @@ export default function Dashboard() {
     return years
   }, [enterprises, actions])
 
+  // Périmètre des cartes et graphiques : tout pour la direction ; pour un commercial, ses entreprises
+  // (assignées), ses actions (réalisées par lui) et ses conversions (faites par lui, à défaut assignées)
+  const me = profile?.id
+  const entsK = useMemo(() => isDirection ? enterprises : enterprises.filter(e => e.assigned_to === me), [enterprises, isDirection, me])
+  const actsK = useMemo(() => isDirection ? actions : actions.filter(a => a.performed_by === me), [actions, isDirection, me])
+  const convK = useMemo(() => enterprises.filter(e => e.converted_at && (isDirection || (e.converted_by ? e.converted_by === me : e.assigned_to === me))), [enterprises, isDirection, me])
+
   // KPI Actions count (scoped to user if not direction)
-  const kpiActActions = isDirection ? actions : actions.filter(a => a.performed_by === profile?.id)
+  const kpiActActions = actsK
   const kpiActCount = kpiActActions.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === kpiActYear && d.getMonth() === kpiActMonth }).length
 
   const [depChart, setDepChart] = useState({ activity: '', results: '', types: '', sector: '' })
@@ -96,16 +103,16 @@ export default function Dashboard() {
   const stats = useMemo(() => {
     const thisYear = now.getFullYear()
     const thisMonth = now.getMonth()
-    const totalEnterprises = enterprises.length
-    const prospects = enterprises.filter(e => e.status === 'prospect').length
-    const clients = enterprises.filter(e => e.status === 'client').length
-    const conversionsAnnee = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear).length
-    const conversionsMois = enterprises.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear && new Date(e.converted_at).getMonth() === thisMonth).length
-    const rdvAnnee = actions.filter(a => a.result === 'RDV pris' && new Date(a.performed_at).getFullYear() === thisYear).length
-    const rdvMois = actions.filter(a => { const d = new Date(a.performed_at); return a.result === 'RDV pris' && d.getFullYear() === thisYear && d.getMonth() === thisMonth }).length
+    const totalEnterprises = entsK.length
+    const prospects = entsK.filter(e => e.status === 'prospect').length
+    const clients = entsK.filter(e => e.status === 'client').length
+    const conversionsAnnee = convK.filter(e => new Date(e.converted_at).getFullYear() === thisYear).length
+    const conversionsMois = convK.filter(e => e.converted_at && new Date(e.converted_at).getFullYear() === thisYear && new Date(e.converted_at).getMonth() === thisMonth).length
+    const rdvAnnee = actsK.filter(a => a.result === 'RDV pris' && new Date(a.performed_at).getFullYear() === thisYear).length
+    const rdvMois = actsK.filter(a => { const d = new Date(a.performed_at); return a.result === 'RDV pris' && d.getFullYear() === thisYear && d.getMonth() === thisMonth }).length
 
     // Pie data filtered to current year
-    const thisYearActions = actions.filter(a => new Date(a.performed_at).getFullYear() === thisYear)
+    const thisYearActions = actsK.filter(a => new Date(a.performed_at).getFullYear() === thisYear)
     const resultCounts = {}
     thisYearActions.forEach(a => { if (a.result) resultCounts[a.result] = (resultCounts[a.result] || 0) + 1 })
     const resultData = Object.entries(resultCounts).map(([name, value]) => ({ name, value, color: PIE_RESULT[name] || '#9ca3af' })).sort((a, b) => b.value - a.value)
@@ -115,13 +122,13 @@ export default function Dashboard() {
 
     // By sector / dept
     const bySector = sectors.map(s => {
-      const sEnts = enterprises.filter(e => e.sector_id === s.id)
+      const sEnts = entsK.filter(e => e.sector_id === s.id)
       return { name: s.name.length > 15 ? s.name.substring(0, 14) + '…' : s.name, total: sEnts.length, clients: sEnts.filter(e => e.status === 'client').length, prospects: sEnts.filter(e => e.status === 'prospect').length }
     }).filter(s => s.total > 0).sort((a, b) => b.total - a.total)
 
-    const dept67 = enterprises.filter(e => e.department === '67')
-    const dept68 = enterprises.filter(e => e.department === '68')
-    const deptNone = enterprises.filter(e => !e.department)
+    const dept67 = entsK.filter(e => e.department === '67')
+    const dept68 = entsK.filter(e => e.department === '68')
+    const deptNone = entsK.filter(e => !e.department)
     const byDept = [
       { name: 'Dép. 67', prospects: dept67.filter(e => e.status === 'prospect').length, clients: dept67.filter(e => e.status === 'client').length },
       { name: 'Dép. 68', prospects: dept68.filter(e => e.status === 'prospect').length, clients: dept68.filter(e => e.status === 'client').length },
@@ -143,20 +150,20 @@ export default function Dashboard() {
       .filter(a => a.next_action_date && a.result === 'À relancer' && mine(a.enterprise_id))
       .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date))
     return { totalEnterprises, prospects, clients, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances }
-  }, [enterprises, actions, profiles, sectors, isDirection, profile?.id])
+  }, [enterprises, actions, entsK, actsK, convK, profiles, sectors, isDirection, profile?.id])
 
   // Données des graphiques filtrées par département (sélecteur sur chaque carte)
   const pieFiltre = (champ, palette, dep) => {
     const y = now.getFullYear(), counts = {}
-    actions.forEach(a => { if (new Date(a.performed_at).getFullYear() === y && actDep(a, dep) && a[champ]) counts[a[champ]] = (counts[a[champ]] || 0) + 1 })
+    actsK.forEach(a => { if (new Date(a.performed_at).getFullYear() === y && actDep(a, dep) && a[champ]) counts[a[champ]] = (counts[a[champ]] || 0) + 1 })
     return Object.entries(counts).map(([name, value]) => ({ name, value, color: palette[name] || '#9ca3af' })).sort((a, b) => b.value - a.value)
   }
-  const resultDataF = useMemo(() => pieFiltre('result', PIE_RESULT, depChart.results), [actions, entDept, depChart.results])
-  const typeDataF = useMemo(() => pieFiltre('action_type', PIE_TYPE, depChart.types), [actions, entDept, depChart.types])
+  const resultDataF = useMemo(() => pieFiltre('result', PIE_RESULT, depChart.results), [actsK, entDept, depChart.results])
+  const typeDataF = useMemo(() => pieFiltre('action_type', PIE_TYPE, depChart.types), [actsK, entDept, depChart.types])
   const bySectorF = useMemo(() => sectors.map(sc => {
-    const sEnts = enterprises.filter(e => e.sector_id === sc.id && entDep(e, depChart.sector))
+    const sEnts = entsK.filter(e => e.sector_id === sc.id && entDep(e, depChart.sector))
     return { name: sc.name.length > 15 ? sc.name.substring(0, 14) + '…' : sc.name, total: sEnts.length, clients: sEnts.filter(e => e.status === 'client').length, prospects: sEnts.filter(e => e.status === 'prospect').length }
-  }).filter(x => x.total > 0).sort((a, b) => b.total - a.total), [enterprises, sectors, depChart.sector])
+  }).filter(x => x.total > 0).sort((a, b) => b.total - a.total), [entsK, sectors, depChart.sector])
 
   // Activity chart data builder
   function buildMonthlyData(startYear, startMonth, endYear, endMonth, dep = '') {
@@ -164,8 +171,8 @@ export default function Dashboard() {
     let y = startYear, m = startMonth
     while (y < endYear || (y === endYear && m <= endMonth)) {
       const label = `${MONTHS_SHORT[m]} ${String(y).slice(2)}`
-      const mActions = actions.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === y && d.getMonth() === m && actDep(a, dep) })
-      const mConv = enterprises.filter(e => { if (!e.converted_at || !entDep(e, dep)) return false; const d = new Date(e.converted_at); return d.getFullYear() === y && d.getMonth() === m }).length
+      const mActions = actsK.filter(a => { const d = new Date(a.performed_at); return d.getFullYear() === y && d.getMonth() === m && actDep(a, dep) })
+      const mConv = convK.filter(e => { if (!e.converted_at || !entDep(e, dep)) return false; const d = new Date(e.converted_at); return d.getFullYear() === y && d.getMonth() === m }).length
       const taux = mActions.length > 0 ? parseFloat(((mConv / mActions.length) * 100).toFixed(1)) : 0
       data.push({ month: label, actions: mActions.length, conversions: mConv, taux })
       m++; if (m > 11) { m = 0; y++ }
@@ -176,8 +183,8 @@ export default function Dashboard() {
   function buildAnnualData(startYear, endYear) {
     const data = []
     for (let y = startYear; y <= endYear; y++) {
-      const yActions = actions.filter(a => new Date(a.performed_at).getFullYear() === y)
-      const yConv = enterprises.filter(e => { if (!e.converted_at) return false; return new Date(e.converted_at).getFullYear() === y }).length
+      const yActions = actsK.filter(a => new Date(a.performed_at).getFullYear() === y)
+      const yConv = convK.filter(e => { if (!e.converted_at) return false; return new Date(e.converted_at).getFullYear() === y }).length
       const taux = yActions.length > 0 ? parseFloat(((yConv / yActions.length) * 100).toFixed(1)) : 0
       data.push({ month: String(y), actions: yActions.length, conversions: yConv, taux })
     }
@@ -196,11 +203,11 @@ export default function Dashboard() {
       return buildMonthlyData(start.getFullYear(), start.getMonth(), thisYear, thisMonth, depChart.activity)
     }
     return buildMonthlyData(2026, 0, thisYear, thisMonth, depChart.activity)
-  }, [enterprises, actions, depChart.activity])
+  }, [actsK, convK, depChart.activity])
 
   // Pie data builders for modals
   function buildPieData(type, year, month, isAnnual) {
-    const filtered = actions.filter(a => {
+    const filtered = actsK.filter(a => {
       const d = new Date(a.performed_at)
       if (isAnnual) return d.getFullYear() === year
       return d.getFullYear() === year && d.getMonth() === month
@@ -257,7 +264,7 @@ export default function Dashboard() {
             <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=entreprises') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.totalEnterprises}</p>
-          <p className="text-xs text-gray-500">Entreprises</p>
+          <p className="text-xs text-gray-500">{isDirection ? 'Entreprises' : 'Mes entreprises'}</p>
           <p className="text-xs text-germa-600 font-medium mt-0.5">{stats.prospects} prospects · {stats.clients} clients</p>
         </div>
         <div onClick={() => setKpiModal('conversions')} className="card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
@@ -266,7 +273,7 @@ export default function Dashboard() {
             <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=conversions') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.conversionsAnnee}</p>
-          <p className="text-xs text-gray-500">Conversions en {now.getFullYear()}</p>
+          <p className="text-xs text-gray-500">{isDirection ? 'Conversions' : 'Mes conversions'} en {now.getFullYear()}</p>
           <p className="text-xs text-germa-600 font-medium mt-0.5">{stats.conversionsMois} ce mois</p>
         </div>
         <div className="card p-3 sm:p-4">
@@ -283,13 +290,13 @@ export default function Dashboard() {
             <button type="button" onClick={e => { e.stopPropagation(); navigate('/historique?vue=rdv') }} className="text-[10px] text-germa-600 italic hover:underline">→ Historique</button>
           </div>
           <p className="text-xl sm:text-2xl font-display font-bold text-gray-900 mt-2">{stats.rdvAnnee}</p>
-          <p className="text-xs text-gray-500">RDV pris en {now.getFullYear()}</p>
+          <p className="text-xs text-gray-500">{isDirection ? 'RDV pris' : 'Mes RDV pris'} en {now.getFullYear()}</p>
           <p className="text-xs text-germa-600 font-medium mt-0.5">{stats.rdvMois} ce mois</p>
         </div>
       </div>
 
       {/* KPI Detail Modal */}
-      {kpiModal && <KPIDetailModal type={kpiModal} enterprises={enterprises} actions={actions} profiles={profiles} onClose={() => setKpiModal(null)} navigate={navigate} availableYears={availableYears} />}
+      {kpiModal && <KPIDetailModal type={kpiModal} enterprises={entsK} conversions={convK} lookup={enterprises} actions={actsK} profiles={profiles} onClose={() => setKpiModal(null)} navigate={navigate} availableYears={availableYears} />}
 
       {/* Activity & Conversions chart */}
       <div id="bloc-graphiques" className="scroll-mt-24 card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('activity')}>
@@ -447,8 +454,8 @@ export default function Dashboard() {
       </div>
 
       {/* Chart modals */}
-      {chartModal === 'activity' && <ActivityChartModal actions={actions} enterprises={enterprises} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}
-      {(chartModal === 'results' || chartModal === 'types') && <PieChartModal type={chartModal} actions={actions} buildPieData={buildPieData} availableYears={availableYears} onClose={() => setChartModal(null)} />}
+      {chartModal === 'activity' && <ActivityChartModal actions={actsK} enterprises={convK} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}
+      {(chartModal === 'results' || chartModal === 'types') && <PieChartModal type={chartModal} actions={actsK} buildPieData={buildPieData} availableYears={availableYears} onClose={() => setChartModal(null)} />}
     </div>
   )
 }
@@ -569,7 +576,7 @@ function PieChartModal({ type, actions, buildPieData, availableYears, onClose })
 }
 
 // ======================== KPI DETAIL MODAL ========================
-function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigate, availableYears }) {
+function KPIDetailModal({ type, enterprises, conversions, lookup, actions, profiles, onClose, navigate, availableYears }) {
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -581,11 +588,11 @@ function KPIDetailModal({ type, enterprises, actions, profiles, onClose, navigat
     items = enterprises.filter(e => { const d = new Date(e.created_at); return d.getFullYear() === year && d.getMonth() === month })
       .map(e => ({ id: e.id, name: e.name, sub: e.city || e.department || '', badge: e.status === 'client' ? 'Client' : 'Prospect', badgeColor: e.status === 'client' ? 'bg-emerald-50 text-emerald-700' : 'bg-blue-50 text-blue-700', by: profiles.find(p => p.id === e.created_by)?.full_name, date: e.created_at }))
   } else if (type === 'conversions') {
-    items = enterprises.filter(e => { if (!e.converted_at) return false; const d = new Date(e.converted_at); return d.getFullYear() === year && d.getMonth() === month })
+    items = (conversions || enterprises).filter(e => { if (!e.converted_at) return false; const d = new Date(e.converted_at); return d.getFullYear() === year && d.getMonth() === month })
       .map(e => ({ id: e.id, name: e.name, sub: e.city || e.department || '', badge: 'Converti', badgeColor: 'bg-emerald-50 text-emerald-700', by: profiles.find(p => p.id === e.converted_by)?.full_name, date: e.converted_at }))
   } else if (type === 'rdv') {
     items = actions.filter(a => { if (a.result !== 'RDV pris') return false; const d = new Date(a.performed_at); return d.getFullYear() === year && d.getMonth() === month })
-      .map(a => { const ent = enterprises.find(e => e.id === a.enterprise_id); return { id: ent?.id, name: ent?.name || '?', sub: a.comments ? a.comments.substring(0, 60) : '', badge: 'RDV pris', badgeColor: 'bg-rose-50 text-rose-700', by: profiles.find(p => p.id === a.performed_by)?.full_name, date: a.performed_at } })
+      .map(a => { const ent = (lookup || enterprises).find(e => e.id === a.enterprise_id); return { id: ent?.id, name: ent?.name || '?', sub: a.comments ? a.comments.substring(0, 60) : '', badge: 'RDV pris', badgeColor: 'bg-rose-50 text-rose-700', by: profiles.find(p => p.id === a.performed_by)?.full_name, date: a.performed_at } })
   }
 
   return (

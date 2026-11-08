@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.54.1-démo'
+export const APP_DISPLAY_VERSION = '2.55.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.55.0-démo',
+    date: '2026-11-08',
+    changes: ['Tableau de bord des commerciaux : cartes et graphiques limités à leurs propres données — leurs entreprises assignées, leurs actions, leurs RDV et leurs conversions ; la direction voit toujours l\'ensemble'],
+  },
   {
     version: '2.54.1-démo',
     date: '2026-11-08',
