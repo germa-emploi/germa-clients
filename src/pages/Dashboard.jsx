@@ -31,7 +31,7 @@ function DepSelect({ value, onChange }) {
   )
 }
 
-export default function Dashboard() {
+export default function Dashboard({ section = 'tableau' }) {
   const { profile, isDirection, viewId } = useAuth()
   const navigate = useNavigate()
   const [enterprises, setEnterprises] = useState([])
@@ -228,10 +228,11 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display font-bold text-2xl text-gray-900">Bonjour {profile?.full_name?.split(' ')[0]} 👋</h1>
-        <p className="text-gray-500 text-sm mt-1">Vue d'ensemble de la prospection</p>
+        <h1 className="font-display font-bold text-2xl text-gray-900">{section === 'graphiques' ? '📈 Graphiques' : <>Bonjour {profile?.full_name?.split(' ')[0]} 👋</>}</h1>
+        <p className="text-gray-500 text-sm mt-1">{section === 'graphiques' ? (isDirection ? 'Activité de toute l\'équipe' : 'Vos entreprises et vos actions') : 'Vue d\'ensemble de la prospection'}</p>
       </div>
 
+      {section === 'tableau' && (<>
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div onClick={() => setKpiModal('enterprises')} className="card p-3 sm:p-4 cursor-pointer hover:shadow-md transition-shadow">
@@ -274,6 +275,9 @@ export default function Dashboard() {
       {/* KPI Detail Modal */}
       {kpiModal && <KPIDetailModal type={kpiModal} enterprises={entsK} conversions={convK} lookup={enterprises} actions={actsK} profiles={profiles} onClose={() => setKpiModal(null)} navigate={navigate} availableYears={availableYears} />}
 
+      </>)}
+
+      {section === 'graphiques' && (<>
       {/* Activity & Conversions chart */}
       <div className="card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('activity')}>
         <div className="flex items-center justify-between mb-4">
@@ -354,6 +358,9 @@ export default function Dashboard() {
         </div>
       </div>
 
+      </>)}
+
+      {section === 'tableau' && (<>
       {/* Entreprises à relancer */}
       {/* Relances : en retard | planifiées (aujourd'hui et à venir) */}
       {(() => {
@@ -412,6 +419,8 @@ export default function Dashboard() {
         </div>
         )
       })()}
+
+      </>)}
 
       {/* Chart modals */}
       {chartModal === 'activity' && <ActivityChartModal actions={actsK} enterprises={convK} buildMonthlyData={buildMonthlyData} buildAnnualData={buildAnnualData} availableYears={availableYears} onClose={() => setChartModal(null)} />}

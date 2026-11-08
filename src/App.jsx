@@ -53,6 +53,7 @@ export default function App() {
         </ProtectedRoute>
       }>
         <Route index element={<Dashboard />} />
+        <Route path="graphiques" element={<Dashboard section="graphiques" />} />
         <Route path="prospects" element={<Enterprises filterStatus="prospect" />} />
         <Route path="clients" element={<Enterprises filterStatus="client" />} />
         <Route path="entreprises/:id" element={<EnterpriseDetail />} />

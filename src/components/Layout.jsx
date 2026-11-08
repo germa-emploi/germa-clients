@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History, ListChecks, Calculator
+  History, ListChecks, Calculator, BarChart3
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 import { supabase } from '../lib/supabase'
@@ -11,6 +11,7 @@ import { isHiddenAccount } from '../utils/constants'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord', end: true },
+  { to: '/graphiques', icon: BarChart3, label: 'Graphiques' },
   { to: '/prospects', icon: Building2, label: 'Prospects' },
   { to: '/clients', icon: UserCheck, label: 'Clients' },
   { to: '/historique', icon: History, label: 'Historique' },
