@@ -102,9 +102,6 @@ export default function Layout() {
             </div>
             <h1 className="font-display font-bold text-germa-900 text-lg leading-tight">GermaClients</h1>
             <p className="text-[10px] text-germa-600 uppercase tracking-widest font-medium">Activité Commerciale</p>
-            <div className="mt-3 w-full rounded-xl bg-violet-50 border border-violet-200 text-violet-800 text-[11px] px-3 py-2 leading-snug">
-              <span className="font-semibold">🧪 Environnement de démo</span> — copie en lecture seule de la vraie base : rien de ce que vous saisissez n'est enregistré. Les fonctions ✨ sont réelles (Worker IA).
-            </div>
           </div>
 
           {/* Nav : défile seule si l'écran est trop petit, logo et profil restent visibles */}

@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.62.1-démo'
+export const APP_DISPLAY_VERSION = '2.62.2-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.62.2-démo',
+    date: '2026-11-08',
+    changes: ['Tableau de bord : lignes de relances réorganisées pour rester lisibles dans les colonnes étroites (nom et date, puis conseil sur deux lignes, puis chaleur et moyen conseillé)', 'Barre latérale : retrait de l\'encart « Environnement de démo » (le bandeau violet en haut reste)'],
+  },
   {
     version: '2.62.1-démo',
     date: '2026-11-08',
