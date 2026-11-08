@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.41.0'
+export const APP_DISPLAY_VERSION = '2.42.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.42.0',
+    date: '2026-11-08',
+    changes: ['Sélecteur de vue déplacé : une icône 👁 en haut à droite (direction) ouvre une fenêtre Direction / Commercial ; l\'icône devient bleue quand une vue Commercial est active'],
+  },
   {
     version: '2.41.0',
     date: '2026-11-08',
