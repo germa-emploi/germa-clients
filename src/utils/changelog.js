@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.61.1-démo'
+export const APP_DISPLAY_VERSION = '2.62.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.62.0-démo',
+    date: '2026-11-08',
+    changes: ['Compte : le bloc du bas du menu (nom, déconnexion, version, vue) est remplacé par une icône 👤 en haut à droite, qui ouvre un panneau avec ces informations et options — plus de place pour le menu sur les petits écrans'],
+  },
   {
     version: '2.61.1-démo',
     date: '2026-11-08',
