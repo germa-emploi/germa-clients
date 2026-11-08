@@ -205,6 +205,8 @@ export default function Enterprises({ filterStatus }) {
     return sortDir === 'asc' ? <ArrowUp size={12} className="text-germa-600" /> : <ArrowDown size={12} className="text-germa-600" />
   }
 
+  // filtre Commercial : seulement les personnes ayant au moins une entreprise de cette liste assignée
+  const assignesListe = new Set(enterprises.filter(e => e.status === filterStatus && e.assigned_to).map(e => e.assigned_to))
   const activeFilters = [filterSector, filterDept, filterCommercial, filterProposition, filterResult, filterDateYear, filterAncienClient].filter(Boolean).length
 
   function clearFilters() {
@@ -296,7 +298,7 @@ export default function Enterprises({ filterStatus }) {
             <select value={filterCommercial} onChange={e => setFilterCommercial(e.target.value)} className="select-field text-sm">
               <option value="">Tous</option>
               <option value="__none__">Aucun</option>
-              {profiles.filter(p => !isHiddenAccount(p)).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+              {profiles.filter(p => !isHiddenAccount(p) && (assignesListe.has(p.id) || p.id === filterCommercial)).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || '')).map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </select>
           </div>
           <div className="flex-1 min-w-[140px]">

@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.54.0-démo'
+export const APP_DISPLAY_VERSION = '2.54.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.54.1-démo',
+    date: '2026-11-08',
+    changes: ['Listes Prospects et Clients : le filtre Commercial ne propose que les personnes ayant au moins une fiche assignée dans cette liste'],
+  },
   {
     version: '2.54.0-démo',
     date: '2026-10-23',
