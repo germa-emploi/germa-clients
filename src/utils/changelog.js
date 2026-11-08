@@ -1,6 +1,15 @@
-export const APP_DISPLAY_VERSION = '2.39.0'
+export const APP_DISPLAY_VERSION = '2.40.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.40.0',
+    date: '2026-11-08',
+    changes: [
+      'Fiche : le bouton « Proposition » devient « Proposition envoyée », puis « Gérer la proposition » une fois la proposition envoyée',
+      'Gérer la proposition : « Proposition acceptée » (avec conversion en client proposée), « Action » (nouvelle action liée à la proposition) ou « Refus » (date, type d\'échange, motif ; enregistré aussi comme action Refus) ; badge « Proposition refusée » sur la fiche',
+      'La conversion en client conserve désormais les dates de la proposition',
+    ],
+  },
   {
     version: '2.39.0',
     date: '2026-11-08',

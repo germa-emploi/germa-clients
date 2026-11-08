@@ -38,6 +38,8 @@ create table enterprises (
   description_activite text,
   proposition_envoyee_at date,
   proposition_signee_at date,
+  proposition_refusee_at date,              -- depuis 2.40.0
+  proposition_motif_refus text,
   notes text,
   created_at timestamptz not null default now(),
   dernier_contrat_at date
