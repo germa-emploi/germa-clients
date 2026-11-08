@@ -81,3 +81,9 @@ export function performedAtFromDate(dateStr, previous) {
 
 // Serveur (Worker Cloudflare) : création de comptes réservée à la direction, fonctions IA
 export const API_WORKER_URL = 'https://germaclients-ia.old-cake-a2b6.workers.dev'
+
+// Comptes de test « miroir » : affichent les données du commercial indiqué (tableau de bord, historique…),
+// mais tout ce qu'ils saisissent reste enregistré à leur propre nom.
+export const MIRROR_ACCOUNTS = {
+  'solo6782@gmail.com': { id: 'ea0868d1-8c10-4184-970f-bcc6908639f3', nom: 'Damien Woerth' },
+}

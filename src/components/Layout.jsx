@@ -47,7 +47,7 @@ function NavItem({ to, icon: Icon, label, end, onClick }) {
 }
 
 export default function Layout() {
-  const { profile, signOut, isDirection } = useAuth()
+  const { profile, signOut, isDirection, mirror } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showChangelog, setShowChangelog] = useState(false)
   const navigate = useNavigate()
@@ -184,6 +184,7 @@ export default function Layout() {
           🧪 ENVIRONNEMENT DE DÉMO — lecture seule, rien n'est enregistré · prod : germa-clients.pages.dev
         </div>
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+          {mirror && <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2">Compte de test — affichage identique à celui de <b>{mirror.nom}</b>. Ce que vous saisissez reste enregistré à votre nom.</div>}
           <Outlet />
         </div>
       </main>

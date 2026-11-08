@@ -33,7 +33,7 @@ function DepSelect({ value, onChange }) {
 }
 
 export default function Dashboard() {
-  const { profile, isDirection } = useAuth()
+  const { profile, isDirection, viewId } = useAuth()
   const navigate = useNavigate()
   const [enterprises, setEnterprises] = useState([])
   const [actions, setActions] = useState([])
@@ -86,7 +86,7 @@ export default function Dashboard() {
 
   // Périmètre des cartes et graphiques : tout pour la direction ; pour un commercial, ses entreprises
   // (assignées), ses actions (réalisées par lui) et ses conversions (faites par lui, à défaut assignées)
-  const me = profile?.id
+  const me = viewId
   const entsK = useMemo(() => isDirection ? enterprises : enterprises.filter(e => e.assigned_to === me), [enterprises, isDirection, me])
   const actsK = useMemo(() => isDirection ? actions : actions.filter(a => a.performed_by === me), [actions, isDirection, me])
   const convK = useMemo(() => enterprises.filter(e => e.converted_at && (isDirection || (e.converted_by ? e.converted_by === me : e.assigned_to === me))), [enterprises, isDirection, me])
@@ -145,12 +145,12 @@ export default function Dashboard() {
       }
     })
     // Un commercial ne voit que les relances des entreprises qui lui sont assignées ; la direction voit tout.
-    const mine = (entId) => isDirection || enterprises.find(e => e.id === entId)?.assigned_to === profile?.id
+    const mine = (entId) => isDirection || enterprises.find(e => e.id === entId)?.assigned_to === viewId
     const upcomingRelances = Object.values(latestActionByEnt)
       .filter(a => a.next_action_date && a.result === 'À relancer' && mine(a.enterprise_id))
       .sort((a, b) => new Date(a.next_action_date) - new Date(b.next_action_date))
     return { totalEnterprises, prospects, clients, conversionsAnnee, conversionsMois, rdvAnnee, rdvMois, resultData, typeData, bySector, byDept, upcomingRelances }
-  }, [enterprises, actions, entsK, actsK, convK, profiles, sectors, isDirection, profile?.id])
+  }, [enterprises, actions, entsK, actsK, convK, profiles, sectors, isDirection, viewId])
 
   // Données des graphiques filtrées par département (sélecteur sur chaque carte)
   const pieFiltre = (champ, palette, dep) => {
@@ -447,10 +447,10 @@ export default function Dashboard() {
         )
       })()}
 
-      <DailySuggestions suggestions={suggestions.filter(s => !s.kind || s.kind === 'jour')} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+      <DailySuggestions suggestions={suggestions.filter(s => !s.kind || s.kind === 'jour')} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={viewId} navigate={navigate} />
       <div id="bloc-rouvrir" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ReopenBlock kind="sans_suite" title="Sans suite à relancer" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
-        <ReopenBlock kind="refus" title="Refus à retenter" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={profile?.id} navigate={navigate} />
+        <ReopenBlock kind="sans_suite" title="Sans suite à relancer" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={viewId} navigate={navigate} />
+        <ReopenBlock kind="refus" title="Refus à retenter" suggestions={suggestions} enterprises={enterprises} profiles={profiles} scores={scores} isDirection={isDirection} profileId={viewId} navigate={navigate} />
       </div>
 
       {/* Chart modals */}
