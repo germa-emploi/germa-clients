@@ -42,20 +42,31 @@ export function AuthProvider({ children }) {
     return data
   }
 
+  const [viewAsState, setViewAsState] = useState(() => { try { return JSON.parse(sessionStorage.getItem('gc_view_as')) || null } catch { return null } })
+  function setViewAs(v) {
+    setViewAsState(v)
+    try { if (v) sessionStorage.setItem('gc_view_as', JSON.stringify(v)); else sessionStorage.removeItem('gc_view_as') } catch { /* ignore */ }
+  }
+
   async function signOut() {
     setUser(null)
     setProfile(null)
     // Oublier les filtres et tris mémorisés des listes
     try { Object.keys(sessionStorage).filter(k => k.startsWith('gc_list_')).forEach(k => sessionStorage.removeItem(k)) } catch { /* ignore */ }
+    setViewAs(null)
     try { await supabase.auth.signOut() } catch (e) { /* ignore */ }
   }
 
-  const isDirection = profile?.role === 'direction'
+  // Sélecteur de vue (direction) : afficher le site exactement comme un commercial le voit.
+  // Les saisies faites dans cette vue restent enregistrées au nom de la personne connectée.
+  const realIsDirection = profile?.role === 'direction'
+  const viewAs = realIsDirection ? viewAsState : null
+  const isDirection = realIsDirection && !viewAs
   const mirror = MIRROR_ACCOUNTS[(profile?.email || '').toLowerCase()] || null
-  const viewId = mirror?.id || profile?.id
+  const viewId = viewAs?.id || mirror?.id || profile?.id
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isDirection, viewId, mirror }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isDirection, realIsDirection, viewAs, setViewAs, viewId, mirror }}>
       {children}
     </AuthContext.Provider>
   )

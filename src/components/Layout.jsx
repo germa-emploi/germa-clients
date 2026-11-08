@@ -44,7 +44,16 @@ function NavItem({ to, icon: Icon, label, end, onClick }) {
 }
 
 export default function Layout() {
-  const { profile, signOut, isDirection, mirror } = useAuth()
+  const { profile, signOut, isDirection, mirror, realIsDirection, viewAs, setViewAs } = useAuth()
+  const [vueCommerciaux, setVueCommerciaux] = useState([])
+  const [choixCommercial, setChoixCommercial] = useState(false)
+  useEffect(() => {
+    if (!realIsDirection) return
+    supabase.from('profiles').select('id, full_name, email, role, is_active').eq('is_active', true).eq('role', 'commercial')
+      .then(({ data }) => setVueCommerciaux((data || []).filter(p => !isHiddenAccount(p)).sort((a, b) => (a.full_name || '').localeCompare(b.full_name || ''))))
+  }, [realIsDirection])
+  const choisirVue = (id) => { const p = vueCommerciaux.find(x => x.id === id); if (p) { setViewAs({ id: p.id, full_name: p.full_name }); setChoixCommercial(false); navigate('/') } }
+  const vueDirection = () => { setViewAs(null); setChoixCommercial(false); navigate('/') }
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showChangelog, setShowChangelog] = useState(false)
   const navigate = useNavigate()
@@ -100,6 +109,21 @@ export default function Layout() {
 
           {/* User */}
           <div className="border-t border-gray-100 pt-4 mt-4 flex-shrink-0">
+            {realIsDirection && (
+              <div className="px-3 mb-3">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1">Vue</p>
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                  <button onClick={vueDirection} className={`flex-1 py-1.5 ${!viewAs && !choixCommercial ? 'bg-germa-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Direction</button>
+                  <button onClick={() => setChoixCommercial(true)} className={`flex-1 py-1.5 ${viewAs || choixCommercial ? 'bg-sky-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Commercial</button>
+                </div>
+                {(viewAs || choixCommercial) && (
+                  <select value={viewAs?.id || ''} onChange={e => choisirVue(e.target.value)} className="select-field text-xs mt-2 w-full">
+                    <option value="" disabled>Choisir un commercial…</option>
+                    {vueCommerciaux.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
             <div className="flex items-center gap-3 px-3 mb-3">
               <div className="w-8 h-8 rounded-full bg-germa-100 flex items-center justify-center">
                 <span className="text-germa-700 font-bold text-xs">
@@ -175,6 +199,7 @@ export default function Layout() {
       {/* Main content */}
       <main className="lg:pl-64 pt-16 lg:pt-0">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+          {viewAs && <div className="mb-4 text-sm bg-sky-50 border border-sky-200 text-sky-900 rounded-xl px-3 py-2 flex items-center justify-between gap-3 flex-wrap"><span>👁️ <b>Vue Commercial — {viewAs.full_name}</b> <span className="text-xs text-sky-700">· vos saisies restent enregistrées à votre nom</span></span><button onClick={vueDirection} className="text-xs font-medium text-sky-800 underline hover:text-sky-950">Revenir à la vue Direction</button></div>}
           {mirror && <div className="mb-4 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2">Compte de test — affichage identique à celui de <b>{mirror.nom}</b>. Ce que vous saisissez reste enregistré à votre nom.</div>}
           <Outlet />
         </div>

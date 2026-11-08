@@ -14,7 +14,7 @@ import ChangePassword from './pages/ChangePassword'
 import ResetPassword from './pages/ResetPassword'
 
 function ProtectedRoute({ children, adminOnly = false }) {
-  const { user, profile, loading } = useAuth()
+  const { user, profile, loading, isDirection } = useAuth()
   
   if (loading) {
     return (
@@ -29,7 +29,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
   
   if (!user || !profile) return <Navigate to="/login" replace />
   if (profile.must_change_password) return <Navigate to="/changer-mot-de-passe" replace />
-  if (adminOnly && profile.role !== 'direction') return <Navigate to="/" replace />
+  if (adminOnly && !isDirection) return <Navigate to="/" replace />
   
   return children
 }
