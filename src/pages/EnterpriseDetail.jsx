@@ -36,6 +36,7 @@ export default function EnterpriseDetail() {
   const [interlocuteurs, setInterlocuteurs] = useState([])
   const [loading, setLoading] = useState(true)
   const [showAddAction, setShowAddAction] = useState(false)
+  const [actionComment, setActionComment] = useState('')
   const [editingAction, setEditingAction] = useState(null)
   const [showEditEnterprise, setShowEditEnterprise] = useState(false)
   const [converting, setConverting] = useState(false)
@@ -76,7 +77,6 @@ export default function EnterpriseDetail() {
     setConverting(true)
     await supabase.from('enterprises').update({
       status: 'client', converted_at: new Date().toISOString(), converted_by: profile.id,
-      proposition_envoyee_at: null, proposition_signee_at: null,
     }).eq('id', id)
     await logActivity({ type: LOG_TYPES.ENTERPRISE_CONVERTED, userId: profile.id, targetType: 'enterprise', targetId: id, targetName: enterprise.name })
     await loadData()
@@ -98,7 +98,7 @@ export default function EnterpriseDetail() {
 
   async function deleteProposition() {
     if (!window.confirm('Supprimer la proposition commerciale ?')) return
-    await supabase.from('enterprises').update({ proposition_envoyee_at: null, proposition_signee_at: null }).eq('id', id)
+    await supabase.from('enterprises').update({ proposition_envoyee_at: null, proposition_signee_at: null, proposition_refusee_at: null, proposition_motif_refus: null }).eq('id', id)
     await logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId: profile.id, targetType: 'enterprise', targetId: id, targetName: enterprise.name, details: 'Proposition commerciale supprimée' })
     loadData()
   }
@@ -118,6 +118,7 @@ export default function EnterpriseDetail() {
   const assignedTo = enterprise.assigned_to ? profiles.find(p => p.id === enterprise.assigned_to) : null
   const statusColor = STATUS_COLORS[enterprise.status] || STATUS_COLORS.prospect
   const hasProposition = enterprise.proposition_envoyee_at || enterprise.proposition_signee_at
+  const propositionEnCours = !!enterprise.proposition_envoyee_at && !enterprise.proposition_signee_at && !enterprise.proposition_refusee_at
 
   return (
     <div className="space-y-4 sm:space-y-6">
@@ -152,7 +153,7 @@ export default function EnterpriseDetail() {
                       {isDirection && <button onClick={deleteProposition} className="ml-1 p-0.5 text-emerald-400 hover:text-red-500"><X size={12} /></button>}
                     </div>
                   )}
-                  {enterprise.proposition_envoyee_at && !enterprise.proposition_signee_at && (
+                  {propositionEnCours && (
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-100 border border-blue-200">
                       <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center"><Send size={12} className="text-white" /></div>
                       <div>
@@ -162,6 +163,16 @@ export default function EnterpriseDetail() {
                       {isDirection && <button onClick={deleteProposition} className="ml-1 p-0.5 text-blue-400 hover:text-red-500"><X size={12} /></button>}
                     </div>
                   )}
+                </div>
+              )}
+
+              {enterprise.status === 'prospect' && enterprise.proposition_refusee_at && !enterprise.proposition_signee_at && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-50 to-rose-100 border border-red-200 mt-2 w-fit" title={enterprise.proposition_motif_refus || ''}>
+                  <div className="w-6 h-6 rounded-full bg-red-500 flex items-center justify-center"><X size={12} className="text-white" /></div>
+                  <div>
+                    <p className="text-xs font-semibold text-red-800">Proposition refusée</p>
+                    <p className="text-[10px] text-red-600">{formatDate(enterprise.proposition_refusee_at)}{enterprise.proposition_motif_refus ? ` — ${enterprise.proposition_motif_refus}` : ''}</p>
+                  </div>
                 </div>
               )}
 
@@ -230,7 +241,7 @@ export default function EnterpriseDetail() {
                   <CheckCircle2 size={16} /><span>{converting ? 'Conversion…' : 'Convertir en client'}</span>
                 </button>
                 <button onClick={() => setShowProposition(true)} className="btn-secondary flex items-center gap-2 text-sm !border-indigo-300 !text-indigo-700 hover:!bg-indigo-50">
-                  <FileText size={14} /> Proposition
+                  <FileText size={14} /> {propositionEnCours ? 'Gérer la proposition' : 'Proposition envoyée'}
                 </button>
               </>
             )}
@@ -367,7 +378,7 @@ export default function EnterpriseDetail() {
       )}
 
       {/* Modals */}
-      {showAddAction && <AddActionModal enterpriseId={id} enterpriseName={enterprise.name} ctx={{ enterprise, actions, interlocuteurs, profile, sector: sector?.name, presse }} onClose={() => setShowAddAction(false)} onCreated={() => { setShowAddAction(false); loadData() }} />}
+      {showAddAction && <AddActionModal enterpriseId={id} initialComments={actionComment} enterpriseName={enterprise.name} ctx={{ enterprise, actions, interlocuteurs, profile, sector: sector?.name, presse }} onClose={() => { setShowAddAction(false); setActionComment('') }} onCreated={() => { setShowAddAction(false); setActionComment(''); loadData() }} />}
       {showHistory && <HistoryModal enterprise={enterprise} profiles={profiles} onClose={() => setShowHistory(false)} />}
       {showMail && <AiMailModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profile={profile} sector={sector?.name} presse={presse} onClose={() => setShowMail(false)} />}
       {showBrief && <AiBriefModal enterprise={enterprise} actions={actions} interlocuteurs={interlocuteurs} profiles={profiles} presse={presse} onClose={() => setShowBrief(false)} onSaisir={() => { setShowBrief(false); setShowAddAction(true) }} />}
@@ -375,7 +386,7 @@ export default function EnterpriseDetail() {
       {showEditEnterprise && <EditEnterpriseModal enterprise={enterprise} sectors={sectors} profiles={profiles} onClose={() => setShowEditEnterprise(false)} onSaved={() => { setShowEditEnterprise(false); loadData() }} />}
       {showAddInterlocuteur && <AddInterlocuteurModal enterpriseId={id} onClose={() => setShowAddInterlocuteur(false)} onCreated={() => { setShowAddInterlocuteur(false); loadData() }} />}
       {editingInterlocuteur && <EditInterlocuteurModal inter={editingInterlocuteur} onClose={() => setEditingInterlocuteur(null)} onSaved={() => { setEditingInterlocuteur(null); loadData() }} />}
-      {showProposition && <PropositionModal enterprise={enterprise} profileId={profile.id} onClose={() => setShowProposition(false)} onSaved={() => { setShowProposition(false); loadData() }} />}
+      {showProposition && <PropositionModal enterprise={enterprise} profileId={profile.id} onClose={() => setShowProposition(false)} onSaved={() => { setShowProposition(false); loadData() }} onAction={() => { setShowProposition(false); setActionComment(`Suite à la proposition envoyée le ${formatDate(enterprise.proposition_envoyee_at)} : `); setShowAddAction(true) }} />}
       {showFusion && <FusionModal enterprise={enterprise} profiles={profiles} sectors={sectors} userId={profile.id} preselectId={fusionTarget} onClose={() => { setShowFusion(false); if (fusionTarget) setSearchParams({}) }} onDone={() => { setShowFusion(false); loadData() }} navigate={navigate} />}
       {showReclasserModal && <ReclasserModal enterprise={enterprise} userId={profile.id} onClose={() => setShowReclasserModal(false)} onDone={() => { setShowReclasserModal(false); loadData() }} />}
     </div>
@@ -383,9 +394,9 @@ export default function EnterpriseDetail() {
 }
 
 // ===================== ADD ACTION MODAL =====================
-function AddActionModal({ enterpriseId, enterpriseName, ctx, onClose, onCreated }) {
+function AddActionModal({ enterpriseId, initialComments = '', enterpriseName, ctx, onClose, onCreated }) {
   const { profile } = useAuth()
-  const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: 'Relance téléphonique', next_action_date: '', comments: '', contact: '' })
+  const [form, setForm] = useState({ performed_date: todayISO(), action_type: 'Physique', channel: 'Physique', is_new_prospect: false, need_identified: false, need_type: '', result: 'À relancer', next_action: 'Relance téléphonique', next_action_date: '', comments: initialComments, contact: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   function update(f, v) { setForm(o => ({ ...o, [f]: v })); if (f === 'action_type') setForm(o => ({ ...o, [f]: v, channel: v })); if (f === 'result' && !RELANCE_RESULTS.includes(v)) setForm(o => ({ ...o, result: v, next_action: '', next_action_date: '' })) }
@@ -675,40 +686,99 @@ function EditInterlocuteurModal({ inter, onClose, onSaved }) {
 }
 
 // ===================== PROPOSITION MODAL =====================
-function PropositionModal({ enterprise, profileId, onClose, onSaved }) {
-  const [type, setType] = useState(null)
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+function PropositionModal({ enterprise, profileId, onClose, onSaved, onAction }) {
+  // Une proposition est « en cours » si elle a été envoyée et n'est ni signée ni refusée
+  const enCours = !!enterprise.proposition_envoyee_at && !enterprise.proposition_signee_at && !enterprise.proposition_refusee_at
+  const [step, setStep] = useState(enCours ? 'choix' : 'envoi') // envoi | choix | acceptee | convertir | refus
+  const [date, setDate] = useState(todayISO())
+  const [motif, setMotif] = useState('')
+  const [typeEchange, setTypeEchange] = useState('Téléphonique')
   const [saving, setSaving] = useState(false)
-  async function handleSubmit() {
-    setSaving(true)
-    const updates = {}
-    if (type === 'envoyee') updates.proposition_envoyee_at = date
-    if (type === 'signee') { updates.proposition_signee_at = date; if (!enterprise.proposition_envoyee_at) updates.proposition_envoyee_at = date }
-    await supabase.from('enterprises').update(updates).eq('id', enterprise.id)
-    await logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId: profileId, targetType: 'enterprise', targetId: enterprise.id, targetName: enterprise.name, details: type === 'envoyee' ? `Proposition envoyée le ${date}` : `Proposition signée le ${date}` })
-    onSaved()
+  const [error, setError] = useState('')
+  const log = (details) => logActivity({ type: LOG_TYPES.ENTERPRISE_UPDATED, userId: profileId, targetType: 'enterprise', targetId: enterprise.id, targetName: enterprise.name, details })
+  const maj = async (fields) => { const { error: e } = await supabase.from('enterprises').update(fields).eq('id', enterprise.id); if (e) { setError(e.message); return false } return true }
+
+  async function envoyer() {
+    setSaving(true); setError('')
+    if (await maj({ proposition_envoyee_at: date, proposition_signee_at: null, proposition_refusee_at: null, proposition_motif_refus: null })) { await log(`Proposition envoyée le ${formatDate(date)}`); onSaved() }
+    setSaving(false)
   }
+  async function accepter() {
+    setSaving(true); setError('')
+    if (await maj({ proposition_signee_at: date })) {
+      await log(`Proposition acceptée le ${formatDate(date)}`)
+      if (enterprise.status === 'prospect') setStep('convertir'); else onSaved()
+    }
+    setSaving(false)
+  }
+  async function convertir() {
+    setSaving(true); setError('')
+    if (await maj({ status: 'client', converted_at: new Date().toISOString(), converted_by: profileId })) {
+      await logActivity({ type: LOG_TYPES.ENTERPRISE_CONVERTED, userId: profileId, targetType: 'enterprise', targetId: enterprise.id, targetName: enterprise.name })
+      onSaved()
+    }
+    setSaving(false)
+  }
+  async function refuser() {
+    setSaving(true); setError('')
+    if (await maj({ proposition_refusee_at: date, proposition_motif_refus: motif.trim() || null })) {
+      // le refus est aussi enregistré comme action : il apparaît dans l'historique et ferme les relances en cours
+      const { error: e } = await supabase.from('actions').insert({ enterprise_id: enterprise.id, performed_by: profileId, performed_at: performedAtFromDate(date), action_type: typeEchange, channel: typeEchange, result: 'Refus', comments: `Proposition refusée${motif.trim() ? ` — ${motif.trim()}` : ''}` })
+      if (e) { setError(e.message); setSaving(false); return }
+      await log(`Proposition refusée le ${formatDate(date)}${motif.trim() ? ` — ${motif.trim()}` : ''}`)
+      onSaved()
+    }
+    setSaving(false)
+  }
+  async function annuler() {
+    if (!window.confirm('Effacer cette proposition (erreur de saisie) ?')) return
+    setSaving(true)
+    if (await maj({ proposition_envoyee_at: null, proposition_signee_at: null, proposition_refusee_at: null, proposition_motif_refus: null })) { await log('Proposition effacée (erreur de saisie)'); onSaved() }
+    setSaving(false)
+  }
+
+  const champDate = (label) => <div><label className="block text-sm font-medium text-gray-700 mb-1">{label}</label><input type="date" value={date} max={todayISO()} onChange={e => setDate(e.target.value)} className="input-field" /></div>
+  const titre = { envoi: 'Proposition envoyée', choix: 'Gérer la proposition', acceptee: 'Proposition acceptée', convertir: 'Proposition acceptée', refus: 'Proposition refusée' }[step]
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">Proposition commerciale</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg">{titre}</h2><button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
         <div className="p-6 space-y-4">
-          {!type ? (
+          {step === 'envoi' && (<>
+            {champDate('Date d\'envoi')}
+            <div className="flex gap-3 pt-2"><button onClick={onClose} className="btn-secondary flex-1">Annuler</button><button onClick={envoyer} disabled={saving} className="btn-primary flex-1 disabled:opacity-50">Enregistrer</button></div>
+          </>)}
+          {step === 'choix' && (<>
+            <p className="text-sm text-gray-500">Proposition envoyée le {formatDate(enterprise.proposition_envoyee_at)}.</p>
             <div className="flex flex-col gap-3">
-              <button onClick={() => setType('envoyee')} className="flex items-center gap-3 p-4 rounded-xl border-2 border-blue-200 hover:bg-blue-50 transition-colors text-left">
-                <Send size={20} className="text-blue-600 flex-shrink-0" /><div><p className="font-medium text-gray-900">Envoyée</p><p className="text-xs text-gray-500">La proposition a été envoyée</p></div>
+              <button onClick={() => setStep('acceptee')} className="flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-200 hover:bg-emerald-50 transition-colors text-left">
+                <PenTool size={20} className="text-emerald-600 flex-shrink-0" /><div><p className="font-medium text-gray-900">Proposition acceptée</p><p className="text-xs text-gray-500">Le client a signé</p></div>
               </button>
-              <button onClick={() => setType('signee')} className="flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-200 hover:bg-emerald-50 transition-colors text-left">
-                <PenTool size={20} className="text-emerald-600 flex-shrink-0" /><div><p className="font-medium text-gray-900">Signée</p><p className="text-xs text-gray-500">La proposition a été signée</p></div>
+              <button onClick={onAction} className="flex items-center gap-3 p-4 rounded-xl border-2 border-blue-200 hover:bg-blue-50 transition-colors text-left">
+                <MessageSquare size={20} className="text-blue-600 flex-shrink-0" /><div><p className="font-medium text-gray-900">Action</p><p className="text-xs text-gray-500">Relance, échange… la proposition reste en attente</p></div>
+              </button>
+              <button onClick={() => setStep('refus')} className="flex items-center gap-3 p-4 rounded-xl border-2 border-red-200 hover:bg-red-50 transition-colors text-left">
+                <X size={20} className="text-red-600 flex-shrink-0" /><div><p className="font-medium text-gray-900">Refus</p><p className="text-xs text-gray-500">Le client a décliné la proposition</p></div>
               </button>
             </div>
-          ) : (
-            <>
-              <div className="flex items-center gap-2 mb-2">{type === 'envoyee' ? <Send size={18} className="text-blue-600" /> : <PenTool size={18} className="text-emerald-600" />}<span className="font-medium">{type === 'envoyee' ? 'Proposition envoyée' : 'Proposition signée'}</span></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="date" value={date} onChange={e => setDate(e.target.value)} className="input-field" required /></div>
-              <div className="flex gap-3 pt-2"><button onClick={() => setType(null)} className="btn-secondary flex-1">Retour</button><button onClick={handleSubmit} disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Valider'}</button></div>
-            </>
-          )}
+            <button onClick={annuler} disabled={saving} className="text-xs text-gray-400 hover:text-red-600">Annuler la proposition (erreur de saisie)</button>
+          </>)}
+          {step === 'acceptee' && (<>
+            {champDate('Date de signature')}
+            <div className="flex gap-3 pt-2"><button onClick={() => setStep('choix')} className="btn-secondary flex-1">Retour</button><button onClick={accepter} disabled={saving} className="btn-primary flex-1 disabled:opacity-50">Enregistrer</button></div>
+          </>)}
+          {step === 'convertir' && (<>
+            <p className="text-sm text-gray-700">✅ Proposition acceptée. Convertir maintenant <b>{enterprise.name}</b> en client ?</p>
+            <div className="flex gap-3 pt-2"><button onClick={onSaved} className="btn-secondary flex-1">Plus tard</button><button onClick={convertir} disabled={saving} className="btn-primary flex-1 disabled:opacity-50">Oui, convertir</button></div>
+          </>)}
+          {step === 'refus' && (<>
+            {champDate('Date du refus')}
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Type d'échange</label><select value={typeEchange} onChange={e => setTypeEchange(e.target.value)} className="select-field">{CHANNELS.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Motif du refus</label><textarea value={motif} onChange={e => setMotif(e.target.value)} rows={3} placeholder="Prix, pas de besoin, autre prestataire…" className="input-field" /></div>
+            <p className="text-xs text-gray-400">Un refus est aussi enregistré comme action : il apparaît dans l'historique et clôt les relances en cours.</p>
+            <div className="flex gap-3 pt-2"><button onClick={() => setStep('choix')} className="btn-secondary flex-1">Retour</button><button onClick={refuser} disabled={saving} className="btn-primary flex-1 !bg-red-600 hover:!bg-red-700 disabled:opacity-50">Enregistrer le refus</button></div>
+          </>)}
+          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
       </div>
     </div>
