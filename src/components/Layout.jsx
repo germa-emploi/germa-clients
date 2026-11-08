@@ -186,6 +186,9 @@ export default function Layout() {
                 )}
               </div>
             )}
+            {realIsDirection && (
+              <a href="https://demo-ia.germa-clients.pages.dev" target="_blank" rel="noopener noreferrer" onClick={() => setVueOuverte(false)} className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-violet-200 bg-violet-50 text-sm font-medium text-violet-700 hover:bg-violet-100 transition-colors">🧪 Ouvrir le site démo</a>
+            )}
             <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
               <button onClick={handleSignOut} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><LogOut size={16} /> Déconnexion</button>
               <VersionBadge onClick={() => { setVueOuverte(false); setShowChangelog(true) }} className="text-gray-400 hover:text-germa-700 hover:bg-germa-50" />

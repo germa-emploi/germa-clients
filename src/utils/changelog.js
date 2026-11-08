@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.43.0'
+export const APP_DISPLAY_VERSION = '2.43.1'
 
 export const CHANGELOG = [
+  {
+    version: '2.43.1',
+    date: '2026-11-08',
+    changes: ['Panneau du compte (direction) : bouton « Ouvrir le site démo » dans un nouvel onglet'],
+  },
   {
     version: '2.43.0',
     date: '2026-11-08',
