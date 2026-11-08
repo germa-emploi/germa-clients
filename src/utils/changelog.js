@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.59.0-démo'
+export const APP_DISPLAY_VERSION = '2.60.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.60.0-démo',
+    date: '2026-11-08',
+    changes: ['Tableau de bord : nouvelle colonne « Propositions envoyées » à gauche des relances — propositions en attente de réponse, ancienneté (J+n, orange dès 7 jours, rouge après 21), relance prévue ou alerte « aucune relance prévue », dernier échange depuis l\'envoi ; anciennes propositions (plus de 90 jours) regroupées à part'],
+  },
   {
     version: '2.59.0-démo',
     date: '2026-11-08',

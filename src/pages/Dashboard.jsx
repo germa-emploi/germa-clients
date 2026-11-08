@@ -417,7 +417,8 @@ export default function Dashboard({ section = 'tableau' }) {
           )
         }
         return (
-        <div id="bloc-relances" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div id="bloc-relances" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <PropositionsColumn enterprises={enterprises} actions={actions} profiles={profiles} isDirection={isDirection} viewId={viewId} navigate={navigate} />
           <div className="card p-4 sm:p-5 border-red-100">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-display font-semibold text-red-700 text-sm">⚠️ {isDirection ? 'Relances en retard' : 'Mes relances en retard'} <span className="text-xs font-normal text-gray-400">({lateAll.length})</span></h3>
@@ -470,6 +471,65 @@ export default function Dashboard({ section = 'tableau' }) {
 }
 
 // ======================== ACTIVITY CHART MODAL ========================
+// 📄 Propositions envoyées en attente de réponse (ni signées ni refusées)
+function PropositionsColumn({ enterprises, actions, profiles, isDirection, viewId, navigate }) {
+  const [showAll, setShowAll] = useState(false)
+  const [showOld, setShowOld] = useState(false)
+  const today = todayISO()
+  const jours = (d) => Math.max(0, Math.floor((new Date(today) - new Date(d)) / 86400000))
+  const latest = {}
+  actions.forEach(a => { if (!latest[a.enterprise_id] || a.performed_at > latest[a.enterprise_id].performed_at) latest[a.enterprise_id] = a })
+  const items = enterprises
+    .filter(e => e.proposition_envoyee_at && !e.proposition_signee_at && !e.proposition_refusee_at && (isDirection || e.assigned_to === viewId))
+    .map(e => {
+      const la = latest[e.id]
+      const depuis = la && la.performed_at.slice(0, 10) >= e.proposition_envoyee_at ? la : null // dernier échange depuis l'envoi
+      const relance = la && la.result === 'À relancer' && la.next_action_date ? la.next_action_date : null
+      return { e, age: jours(e.proposition_envoyee_at), depuis, relance }
+    })
+    // un « Refus » ou « Sans suite » enregistré après l'envoi clôt la proposition
+    .filter(x => !(x.depuis && ['Refus', 'Sans suite'].includes(x.depuis.result)))
+  // en tête : celles sans relance prévue (risque d'oubli), puis les plus anciennes
+  const tri = (a, b) => (!!a.relance - !!b.relance) || b.age - a.age
+  const recentes = items.filter(x => x.age <= 90).sort(tri)
+  const anciennes = items.filter(x => x.age > 90).sort((a, b) => b.age - a.age)
+  const shown = showAll ? recentes : recentes.slice(0, 15)
+  const Row = ({ x }) => {
+    const nom = profiles.find(p => p.id === x.e.assigned_to)?.full_name
+    const couleur = x.age > 21 ? 'bg-red-100 text-red-700' : x.age >= 7 ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-600'
+    return (
+      <div onClick={() => navigate(`/entreprises/${x.e.id}`)} className="flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors bg-indigo-50/40 hover:bg-indigo-50">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate flex items-center gap-2">{x.e.name}{x.e.status === 'client' && <span className="badge bg-emerald-50 text-emerald-700 !text-[10px] !py-0">Client</span>}</p>
+          <p className="text-xs text-gray-500 truncate">Envoyée le {formatDate(x.e.proposition_envoyee_at)}{isDirection && nom ? ` — ${nom}` : ''}</p>
+          <p className={`text-xs ${x.relance ? 'text-gray-500' : 'text-red-600 font-medium'}`}>
+            {x.relance ? `Relance prévue le ${formatDate(x.relance)}` : '⚠ Aucune relance prévue'}{x.depuis ? ` · dernier échange le ${formatDate(x.depuis.performed_at)}` : ' · aucun échange depuis l\'envoi'}
+          </p>
+        </div>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md whitespace-nowrap ${couleur}`} title="Jours depuis l'envoi">J+{x.age}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="card p-4 sm:p-5 border-indigo-100">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display font-semibold text-indigo-800 text-sm">📄 {isDirection ? 'Propositions envoyées' : 'Mes propositions envoyées'} <span className="text-xs font-normal text-gray-400">({items.length})</span></h3>
+      </div>
+      <div className="space-y-1.5">
+        {recentes.length === 0 && <p className="text-sm text-gray-400 py-4 text-center">Aucune proposition en attente de réponse</p>}
+        {shown.map(x => <Row key={x.e.id} x={x} />)}
+      </div>
+      {recentes.length > 15 && <button onClick={() => setShowAll(v => !v)} className="mt-3 w-full text-sm font-medium text-indigo-700 hover:bg-indigo-50 rounded-xl py-2 border border-indigo-200">{showAll ? 'Réduire' : `Voir toutes les propositions (${recentes.length})`}</button>}
+      {anciennes.length > 0 && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <button onClick={() => setShowOld(v => !v)} className="text-xs font-medium text-gray-500 hover:text-indigo-700">{showOld ? '▾' : '▸'} Anciennes propositions, plus de 90 jours ({anciennes.length}) — à clôturer</button>
+          {showOld && <div className="space-y-1.5 mt-2">{anciennes.map(x => <Row key={x.e.id} x={x} />)}</div>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ActivityChartModal({ actions, enterprises, buildMonthlyData, buildAnnualData, availableYears, onClose }) {
   const now = new Date()
   const [mode, setMode] = useState('mensuel') // 'mensuel' | 'annuel'
