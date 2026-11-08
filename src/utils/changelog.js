@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.62.0-démo'
+export const APP_DISPLAY_VERSION = '2.62.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.62.1-démo',
+    date: '2026-11-08',
+    changes: ['Panneau du compte (direction) : bouton « Ouvrir le site de production » dans un nouvel onglet'],
+  },
   {
     version: '2.62.0-démo',
     date: '2026-11-08',
