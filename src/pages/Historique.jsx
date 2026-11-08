@@ -18,7 +18,7 @@ const monthLabel = (k) => `${MONTHS[+k.slice(5) - 1].slice(0, 4)}. ${k.slice(0, 
 
 export default function Historique() {
   const navigate = useNavigate()
-  const { profile, isDirection } = useAuth()
+  const { profile, isDirection, viewId } = useAuth()
   const [params, setParams] = useSearchParams()
   const view = VIEWS.some(v => v.key === params.get('vue')) ? params.get('vue') : 'actions'
   const setView = (v) => setParams({ vue: v })
@@ -48,7 +48,7 @@ export default function Historique() {
   const entById = useMemo(() => Object.fromEntries(enterprises.map(e => [e.id, e])), [enterprises])
   const profName = (id) => profiles.find(p => p.id === id)?.full_name || '—'
   const sectorName = (id) => sectors.find(s => s.id === id)?.name || '—'
-  const me = profile?.id
+  const me = viewId
 
   // Lignes brutes selon la vue : { id, date, ent, action?, who }
   const rows = useMemo(() => {

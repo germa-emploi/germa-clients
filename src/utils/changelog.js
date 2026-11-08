@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.36.0'
+export const APP_DISPLAY_VERSION = '2.37.0'
 
 export const CHANGELOG = [
+  {
+    version: '2.37.0',
+    date: '2026-11-08',
+    changes: ['Compte de test « miroir » : il affiche le tableau de bord et l\'historique d\'un commercial désigné (pour vérifier sa vue), tout en enregistrant ses propres saisies à son nom'],
+  },
   {
     version: '2.36.0',
     date: '2026-11-08',

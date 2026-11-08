@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import { MIRROR_ACCOUNTS } from '../utils/constants'
 
 const AuthContext = createContext({})
 
@@ -50,9 +51,11 @@ export function AuthProvider({ children }) {
   }
 
   const isDirection = profile?.role === 'direction'
+  const mirror = MIRROR_ACCOUNTS[(profile?.email || '').toLowerCase()] || null
+  const viewId = mirror?.id || profile?.id
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isDirection }}>
+    <AuthContext.Provider value={{ user, profile, loading, signIn, signOut, isDirection, viewId, mirror }}>
       {children}
     </AuthContext.Provider>
   )
