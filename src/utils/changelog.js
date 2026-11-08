@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.61.0-démo'
+export const APP_DISPLAY_VERSION = '2.61.1-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.61.1-démo',
+    date: '2026-11-08',
+    changes: ['Graphiques : le filtre 67 / 68 n\'est plus affiché aux commerciaux (il reste disponible pour la direction)'],
+  },
   {
     version: '2.61.0-démo',
     date: '2026-11-08',

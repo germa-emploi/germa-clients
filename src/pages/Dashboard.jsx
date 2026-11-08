@@ -306,7 +306,7 @@ export default function Dashboard({ section = 'tableau' }) {
       <div id="bloc-graphiques" className="scroll-mt-24 card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('activity')}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display font-semibold text-gray-900 text-sm">📈 Activité & Conversions</h3>
-          <div className="flex items-center gap-2"><DepSelect value={depChart.activity} onChange={setDep('activity')} /><Maximize2 size={16} className="text-gray-400" /></div>
+          <div className="flex items-center gap-2">{isDirection && <DepSelect value={depChart.activity} onChange={setDep('activity')} />}<Maximize2 size={16} className="text-gray-400" /></div>
         </div>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -330,7 +330,7 @@ export default function Dashboard({ section = 'tableau' }) {
         <div className="card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('results')}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-display font-semibold text-gray-900 text-sm">🎯 Résultats des actions ({now.getFullYear()})</h3>
-            <div className="flex items-center gap-2"><DepSelect value={depChart.results} onChange={setDep('results')} /><Maximize2 size={16} className="text-gray-400" /></div>
+            <div className="flex items-center gap-2">{isDirection && <DepSelect value={depChart.results} onChange={setDep('results')} />}<Maximize2 size={16} className="text-gray-400" /></div>
           </div>
           {resultDataF.length > 0 ? (
             <div className="h-48">
@@ -343,7 +343,7 @@ export default function Dashboard({ section = 'tableau' }) {
         <div className="card p-4 sm:p-5 cursor-pointer hover:shadow-md transition-shadow" onClick={() => setChartModal('types')}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-display font-semibold text-gray-900 text-sm">📞 Types d'échange ({now.getFullYear()})</h3>
-            <div className="flex items-center gap-2"><DepSelect value={depChart.types} onChange={setDep('types')} /><Maximize2 size={16} className="text-gray-400" /></div>
+            <div className="flex items-center gap-2">{isDirection && <DepSelect value={depChart.types} onChange={setDep('types')} />}<Maximize2 size={16} className="text-gray-400" /></div>
           </div>
           {typeDataF.length > 0 ? (
             <div className="h-48">
@@ -358,7 +358,7 @@ export default function Dashboard({ section = 'tableau' }) {
       {/* Bar charts */}
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-4 sm:p-5">
-          <div className="flex items-center justify-between mb-4"><h3 className="font-display font-semibold text-gray-900 text-sm">📂 Entreprises par secteur</h3><DepSelect value={depChart.sector} onChange={setDep('sector')} /></div>
+          <div className="flex items-center justify-between mb-4"><h3 className="font-display font-semibold text-gray-900 text-sm">📂 Entreprises par secteur</h3>{isDirection && <DepSelect value={depChart.sector} onChange={setDep('sector')} />}</div>
           {bySectorF.length > 0 ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
