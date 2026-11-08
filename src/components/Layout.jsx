@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, Building2, Shield, LogOut, Menu, X, ChevronRight, UserCheck,
-  History, ListChecks, Calculator, BarChart3, Eye
+  History, ListChecks, Calculator, BarChart3, Eye, User
 } from 'lucide-react'
 import { VersionBadge, ChangelogModal } from './ChangelogModal'
 import { supabase } from '../lib/supabase'
@@ -108,30 +108,6 @@ export default function Layout() {
             <DailyBox />
           </nav>
 
-          {/* User */}
-          <div className="border-t border-gray-100 pt-4 mt-4 flex-shrink-0">
-            <div className="flex items-center gap-3 px-3 mb-3">
-              <div className="w-8 h-8 rounded-full bg-germa-100 flex items-center justify-center">
-                <span className="text-germa-700 font-bold text-xs">
-                  {profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name}</p>
-                <p className="text-xs text-gray-500 capitalize">{profile?.role}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors w-full"
-            >
-              <LogOut size={16} />
-              <span>Déconnexion</span>
-            </button>
-            <div className="mt-2 text-center">
-              <VersionBadge onClick={() => setShowChangelog(true)} className="text-gray-400 hover:text-germa-700 hover:bg-germa-50" />
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -143,7 +119,7 @@ export default function Layout() {
           <span className="font-display font-bold text-germa-900 text-lg">GermaClients</span>
         </div>
         <div className="flex items-center gap-2">
-          {realIsDirection && <button onClick={() => { setChoixCommercial(!!viewAs); setVueOuverte(true) }} title={viewAs ? `Vue Commercial — ${viewAs.full_name}` : 'Changer de vue'} className={`flex w-9 h-9 rounded-xl items-center justify-center border shadow-sm transition-colors ${viewAs ? 'bg-sky-600 border-sky-600 text-white hover:bg-sky-700' : 'bg-white border-gray-200 text-gray-600 hover:text-germa-700 hover:border-germa-300'}`}><Eye size={17} /></button>}
+          <button onClick={() => { setChoixCommercial(!!viewAs); setVueOuverte(v => !v) }} className={`flex w-9 h-9 rounded-full items-center justify-center border transition-colors ${viewAs ? 'bg-sky-600 border-sky-600 text-white' : 'bg-white border-gray-200 text-gray-600'}`}><User size={17} /></button>
           <button
           onClick={() => setMobileOpen(!mobileOpen)}
           className="p-2 rounded-xl hover:bg-gray-100 transition-colors"
@@ -186,28 +162,36 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      {realIsDirection && <button onClick={() => { setChoixCommercial(!!viewAs); setVueOuverte(true) }} title={viewAs ? `Vue Commercial — ${viewAs.full_name}` : 'Changer de vue'} className={`hidden lg:flex fixed top-4 right-6 z-40 w-9 h-9 rounded-xl items-center justify-center border shadow-sm transition-colors ${viewAs ? 'bg-sky-600 border-sky-600 text-white hover:bg-sky-700' : 'bg-white border-gray-200 text-gray-600 hover:text-germa-700 hover:border-germa-300'}`}><Eye size={17} /></button>}
+      <button onClick={() => { setChoixCommercial(!!viewAs); setVueOuverte(v => !v) }} title={viewAs ? `Vue Commercial — ${viewAs.full_name}` : profile?.full_name} className={`hidden lg:flex fixed top-4 right-6 z-40 w-10 h-10 rounded-full items-center justify-center border shadow-sm transition-colors ${viewAs ? 'bg-sky-600 border-sky-600 text-white hover:bg-sky-700' : 'bg-white border-gray-200 text-gray-600 hover:text-germa-700 hover:border-germa-300'}`}><User size={18} /></button>
       {vueOuverte && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setVueOuverte(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100"><h2 className="font-display font-semibold text-lg flex items-center gap-2"><Eye size={18} /> Vue</h2><button onClick={() => setVueOuverte(false)} className="p-1 hover:bg-gray-100 rounded-lg"><X size={20} /></button></div>
-            <div className="p-6 space-y-3">
-              <button onClick={vueDirection} className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${!viewAs && !choixCommercial ? 'border-germa-600 bg-germa-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <p className="font-medium text-gray-900">Direction</p><p className="text-xs text-gray-500">Vue complète, toute l'équipe</p>
-              </button>
-              <button onClick={() => setChoixCommercial(true)} className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${viewAs || choixCommercial ? 'border-sky-500 bg-sky-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <p className="font-medium text-gray-900">Commercial</p><p className="text-xs text-gray-500">Voir le site exactement comme un commercial</p>
-              </button>
-              {(viewAs || choixCommercial) && (
-                <select value={viewAs?.id || ''} onChange={e => choisirVue(e.target.value)} className="select-field w-full">
-                  <option value="" disabled>Choisir un commercial…</option>
-                  {vueCommerciaux.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
-                </select>
-              )}
-              <p className="text-xs text-gray-400">Dans la vue Commercial, vos saisies restent enregistrées à votre nom.</p>
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setVueOuverte(false)} />
+          <div className="fixed top-16 lg:top-16 right-4 lg:right-6 z-50 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-germa-100 flex items-center justify-center"><span className="text-germa-700 font-bold text-sm">{profile?.full_name?.charAt(0)?.toUpperCase() || '?'}</span></div>
+              <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{profile?.full_name}</p><p className="text-xs text-gray-500 capitalize">{profile?.role}{mirror ? ` · miroir de ${mirror.nom}` : ''}</p></div>
+            </div>
+            {realIsDirection && (
+              <div className="pt-3 border-t border-gray-100">
+                <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-1.5">Vue</p>
+                <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                  <button onClick={vueDirection} className={`flex-1 py-1.5 ${!viewAs && !choixCommercial ? 'bg-germa-700 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Direction</button>
+                  <button onClick={() => setChoixCommercial(true)} className={`flex-1 py-1.5 ${viewAs || choixCommercial ? 'bg-sky-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>Commercial</button>
+                </div>
+                {(viewAs || choixCommercial) && (
+                  <select value={viewAs?.id || ''} onChange={e => choisirVue(e.target.value)} className="select-field text-xs mt-2 w-full">
+                    <option value="" disabled>Choisir un commercial…</option>
+                    {vueCommerciaux.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                  </select>
+                )}
+              </div>
+            )}
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+              <button onClick={handleSignOut} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"><LogOut size={16} /> Déconnexion</button>
+              <VersionBadge onClick={() => { setVueOuverte(false); setShowChangelog(true) }} className="text-gray-400 hover:text-germa-700 hover:bg-germa-50" />
             </div>
           </div>
-        </div>
+        </>
       )}
       <main className="lg:pl-64 pt-16 lg:pt-0">
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
