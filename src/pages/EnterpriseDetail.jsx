@@ -22,7 +22,7 @@ import Flames from '../components/Flames'
 export default function EnterpriseDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { profile, isDirection } = useAuth()
+  const { profile, isDirection, viewId } = useAuth()
   const [enterprise, setEnterprise] = useState(null)
   const [showMail, setShowMail] = useState(false)
   const [heat, setHeat] = useState(null)
@@ -348,7 +348,7 @@ export default function EnterpriseDetail() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    {(isDirection || action.performed_by === profile.id) && (
+                    {(isDirection || action.performed_by === viewId) && (
                       <button onClick={() => setEditingAction(action)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-300 hover:text-germa-600 transition-colors"><Edit3 size={14} /></button>
                     )}
                     {isDirection && (

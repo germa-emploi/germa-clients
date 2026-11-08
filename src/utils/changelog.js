@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.57.0-démo'
+export const APP_DISPLAY_VERSION = '2.58.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.58.0-démo',
+    date: '2026-11-08',
+    changes: ['Direction : sélecteur de vue en bas du menu (Direction / Commercial) — en vue Commercial, on choisit un commercial et tout le site s\'affiche comme il le voit, avec un bandeau « Vue Commercial — nom » ; les saisies restent enregistrées au nom de la personne connectée'],
+  },
   {
     version: '2.57.0-démo',
     date: '2026-11-08',
