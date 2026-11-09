@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.62.2-démo'
+export const APP_DISPLAY_VERSION = '2.63.0-démo'
 
 export const CHANGELOG = [
+  {
+    version: '2.63.0-démo',
+    date: '2026-11-09',
+    changes: ['Protection des données envoyées à l\'IA : téléphones et e-mails retirés, noms des interlocuteurs et du commercial remplacés par des repères avant l\'envoi (mail, brief, prochaine action suggérée, calculs de nuit) ; les vrais noms sont remis à l\'écran dans les mails et briefs (Worker 1.3.0)', 'Formulaires d\'action : rappel sous « Commentaires » — pas d\'information sensible (santé, situation personnelle), les commentaires étant lus par l\'assistant IA'],
+  },
   {
     version: '2.62.2-démo',
     date: '2026-11-08',

@@ -430,7 +430,7 @@ function AddActionModal({ enterpriseId, initialComments = '', enterpriseName, ct
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires <span className="font-normal text-xs text-gray-400">— pas d'information sensible (santé, situation personnelle) : les commentaires sont lus par l'assistant IA</span></label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <RelanceSuggestion form={form} setForm={setForm} ctx={ctx} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
@@ -493,7 +493,7 @@ function EditActionModal({ action, enterpriseName, ctx, onClose, onSaved }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires <span className="font-normal text-xs text-gray-400">— pas d'information sensible (santé, situation personnelle) : les commentaires sont lus par l'assistant IA</span></label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <RelanceSuggestion form={form} setForm={setForm} ctx={ctx} />
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
@@ -1028,7 +1028,7 @@ function RelanceSuggestion({ form, setForm, ctx }) {
     if ((form.comments || '').trim().length < 6) { setWarn(true); return }
     setBusy(true); setSug(null)
     const context = ctx ? buildContext({ enterprise: ctx.enterprise, actions: ctx.actions, interlocuteurs: ctx.interlocuteurs, profile: ctx.profile, sector: ctx.sector, presse: ctx.presse }) : ''
-    const res = await aiRequest('relance_date', `${context}\n\nAction en cours de saisie (${form.action_type}, résultat ${form.result}) — commentaire : ${form.comments}\nDate du jour : ${todayISO()}`)
+    const res = await aiRequest('relance_date', `${context}\n\nAction en cours de saisie (${form.action_type}, résultat ${form.result}) — commentaire : ${form.comments}\nDate du jour : ${todayISO()}`, ctx ? { interlocuteurs: ctx.interlocuteurs, enterprise: ctx.enterprise, profile: ctx.profile } : {})
     let r
     if (res?.result && ('date' in res.result)) r = { date: res.result.date || '', label: NEXT_ACTIONS.includes(res.result.label) ? res.result.label : 'Relance téléphonique', why: res.result.why || '', source: res.model }
     else { const p = parseFreeText(form.comments); r = { date: p.next_action_date || '', label: 'Relance téléphonique', why: p.next_action_date ? 'date trouvée dans le commentaire' : 'aucune date trouvée', source: 'analyse locale' } }
@@ -1090,7 +1090,7 @@ function AiMailModal({ enterprise, actions, interlocuteurs, profile, sector, pre
   const generate = async (withNews = useNews) => {
     setReady(false)
     const ctx = buildContext({ enterprise, actions, interlocuteurs, profile, sector, presse: withNews ? presse : [], kind: actions.length ? 'relance' : 'premier contact' })
-    const res = await aiRequest('mail', ctx)
+    const res = await aiRequest('mail', ctx, { interlocuteurs, enterprise, profile })
     if (res?.result?.subject && res?.result?.body) { setDraft(res.result); setSource(`Rédigé par ${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus, ${res.usage?.output_tokens ?? '?'} écrits`) }
     else { await new Promise(r => setTimeout(r, 900)); setDraft(draftEmail({ enterprise, actions, interlocuteurs, profile, sector })); setSource('Gabarit local (IA indisponible)') }
     setReady(true)
@@ -1119,7 +1119,7 @@ function AiBriefModal({ enterprise, actions, interlocuteurs, profiles, presse = 
   const [b, setB] = useState(null)
   const [source, setSource] = useState('')
   useEffect(() => { (async () => {
-    const res = await aiRequest('brief', buildContext({ enterprise, actions, interlocuteurs, profile: profiles.find(p => p.id === enterprise.assigned_to), presse }))
+    const res = await aiRequest('brief', buildContext({ enterprise, actions, interlocuteurs, profile: profiles.find(p => p.id === enterprise.assigned_to), presse }), { interlocuteurs, enterprise, profile: profiles.find(p => p.id === enterprise.assigned_to) })
     if (res?.result?.qui) { setB({ ...res.result, savoir: [].concat(res.result.savoir || []), demander: [].concat(res.result.demander || []) }); setSource(`${res.model} — ${res.usage?.input_tokens ?? '?'} tokens lus`) }
     else { await new Promise(r => setTimeout(r, 800)); setB(briefBeforeCall({ enterprise, actions, interlocuteurs, profiles })); setSource('Gabarit local (IA indisponible)') }
     setReady(true)

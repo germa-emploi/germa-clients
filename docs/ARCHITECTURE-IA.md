@@ -108,7 +108,13 @@ Scripts de création : `supabase/migrations/2026-09-*_ia_*.sql`. RLS : lecture p
 
 ## Version du Worker
 
-La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version ; 1.2.0 = briefing de réunion commerciale (`/reunion`), calcul des chiffres sur une période quelconque ; 1.2.1 = chaîne de nuit robuste (rapport du mois écoulé en premier et rattrapé chaque nuit tant qu'il manque, chaque étape isolée).
+La constante `WORKER_VERSION`, tout en bas de `worker-ia/worker.js`, est incrémentée à chaque modification. La version réellement en ligne se lit à l'adresse `https://germaclients-ia.old-cake-a2b6.workers.dev/version`. Historique : 1.0.0 = état au 23/09/2026 avant numérotation ; 1.1.0 = retrait du paramètre `temperature` + numéro de version ; 1.2.0 = briefing de réunion commerciale (`/reunion`), calcul des chiffres sur une période quelconque ; 1.3.0 = masquage des données personnelles avant envoi à l'IA ; 1.2.1 = chaîne de nuit robuste (rapport du mois écoulé en premier et rattrapé chaque nuit tant qu'il manque, chaque étape isolée).
+
+## Protection des données (depuis Worker 1.3.0 / 2.63.0-démo)
+
+- **Site** (`src/demo/demo.js`) : `aiRequest(task, context, { interlocuteurs, enterprise, profile })` remplace avant l'envoi les noms des interlocuteurs par `[Interlocuteur n]` et celui du commercial par `[Commercial]`, retire téléphones et e-mails, puis remet les vrais noms dans la réponse (`renommer`). Les noms ne quittent pas le navigateur.
+- **Worker** : `scrub()` retire téléphones et e-mails et remplace les noms d'interlocuteurs (`nomsParEntreprise`) par `[interlocuteur]` dans tous les contextes de nuit (notation, suggestions, sans suite / refus, conseils de relance), et filtre aussi les demandes du site.
+- Limites : un nom cité dans un commentaire sans être enregistré comme interlocuteur n'est pas reconnu ; le PDF de compte rendu de réunion est envoyé tel quel.
 
 ## Pièges connus
 

@@ -10,8 +10,45 @@ export const DEMO_MODE = true
 export const AI_WORKER_URL = 'https://germaclients-ia.old-cake-a2b6.workers.dev'
 
 // Appel du Worker. Renvoie null si pas d'URL ou en cas d'erreur (les composants retombent sur les gabarits).
-export async function aiRequest(task, context) {
+// ------------------------------------------------------------
+// Protection des données : avant tout envoi à l'IA, on retire les téléphones et e-mails,
+// et on remplace les noms des interlocuteurs et du commercial par des repères ([Interlocuteur 1], [Commercial]).
+// La réponse de l'IA est ensuite « re-nommée » ici, dans le navigateur : les vrais noms ne partent jamais.
+// ------------------------------------------------------------
+const STOP = new Set(['madame', 'monsieur', 'mme', 'mlle', 'mr', 'chef', 'gerant', 'gérant', 'directeur', 'directrice', 'responsable', 'service', 'les', 'des', 'and', 'van', 'von', 'del', 'della'])
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+export const RE_EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g
+export const RE_TEL = /(?:\+33\s?|\b0)[1-9](?:[\s.-]?\d{2}){4}\b/g
+function pseudonymes({ interlocuteurs = [], enterprise, profile } = {}) {
+  const map = []
+  const named = interlocuteurs.filter(i => i.name && !/^a d[ée]finir$/i.test(i.name.trim()))
+  named.forEach((i, k) => map.push({ tag: `[Interlocuteur ${k + 1}]`, real: i.name.trim() }))
+  if (!named.length && enterprise?.contact_name && !/^a d[ée]finir$/i.test(enterprise.contact_name.trim())) map.push({ tag: '[Interlocuteur 1]', real: enterprise.contact_name.trim() })
+  if (profile?.full_name) map.push({ tag: '[Commercial]', real: profile.full_name.trim() })
+  return map
+}
+export function anonymiser(text, map = []) {
+  let t = String(text || '').replace(RE_EMAIL, '[e-mail]').replace(RE_TEL, '[téléphone]')
+  for (const { tag, real } of map) {
+    t = t.replace(new RegExp(`(?<![\\p{L}])${esc(real)}(?![\\p{L}])`, 'giu'), tag)
+    real.split(/[\s-]+/).filter(w => w.length >= 3 && !STOP.has(w.toLowerCase())).forEach(w => {
+      t = t.replace(new RegExp(`(?<![\\p{L}\\[])${esc(w)}(?![\\p{L}\\]])`, 'giu'), tag)
+    })
+  }
+  return t
+}
+function renommer(v, map) {
+  if (typeof v === 'string') return map.reduce((t, { tag, real }) => t.split(tag).join(real), v)
+  if (Array.isArray(v)) return v.map(x => renommer(x, map))
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, renommer(x, map)]))
+  return v
+}
+
+// qui : { interlocuteurs, enterprise, profile } — sert à masquer les noms avant l'envoi et à les remettre dans la réponse
+export async function aiRequest(task, context, qui = {}) {
   if (!AI_WORKER_URL) return null
+  const map = pseudonymes(qui)
+  context = anonymiser(context, map)
   try {
     const { supabase } = await import('../lib/supabase')
     const { data: { session } } = await supabase.auth.getSession()
@@ -19,7 +56,7 @@ export async function aiRequest(task, context) {
     const r = await fetch(AI_WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ task, context }) })
     const data = await r.json()
     if (!r.ok || !data?.result || data.result.raw) { console.warn('IA:', data?.error || data?.result?.raw); return null }
-    return data
+    return { ...data, result: renommer(data.result, map) }
   } catch (e) { console.warn('IA indisponible :', e); return null }
 }
 

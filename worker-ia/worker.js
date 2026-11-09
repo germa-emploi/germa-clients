@@ -96,6 +96,30 @@ function cors(origin, allowed) {
   }
 }
 
+// ---------- Protection des données ----------
+// Avant tout envoi à l'IA : téléphones et e-mails retirés, noms des interlocuteurs remplacés par [interlocuteur].
+const RE_EMAIL = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g
+const RE_TEL = /(?:\+33\s?|\b0)[1-9](?:[\s.-]?\d{2}){4}\b/g
+const STOP = new Set(['madame', 'monsieur', 'mme', 'mlle', 'mr', 'chef', 'gerant', 'gérant', 'directeur', 'directrice', 'responsable', 'service', 'les', 'des'])
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function scrub(text, noms = []) {
+  let t = String(text || '').replace(RE_EMAIL, '[e-mail]').replace(RE_TEL, '[téléphone]')
+  for (const n of noms) {
+    if (!n || /^a d[ée]finir$/i.test(n.trim())) continue
+    t = t.replace(new RegExp(`(?<![\\p{L}])${escRe(n.trim())}(?![\\p{L}])`, 'giu'), '[interlocuteur]')
+    n.split(/[\s-]+/).filter(x => x.length >= 3 && !STOP.has(x.toLowerCase())).forEach(x => { t = t.replace(new RegExp(`(?<![\\p{L}\\[])${escRe(x)}(?![\\p{L}\\]])`, 'giu'), '[interlocuteur]') })
+  }
+  return t
+}
+// noms des interlocuteurs par entreprise (fiche + contact principal)
+async function nomsParEntreprise(env, ents) {
+  const inters = await sbAll(env, 'interlocuteurs?select=enterprise_id,name')
+  const by = {}
+  inters.forEach(i => { if (i.name) (by[i.enterprise_id] = by[i.enterprise_id] || []).push(i.name) })
+  ents.forEach(e => { if (e.contact_name) (by[e.id] = by[e.id] || []).push(e.contact_name) })
+  return by
+}
+
 // ---------- Notation nocturne ----------
 const fmtFR = (d) => d ? new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Europe/Paris' }) : ''
 function buildContext(e, actions, inters, profiles) {
@@ -104,14 +128,15 @@ function buildContext(e, actions, inters, profiles) {
   const L = [`Entreprise : ${e.name} — ${e.city || '?'} (${e.department || '?'})${e.description_activite ? ` — ${e.description_activite}` : ''}`,
     `Statut : ${e.status} — commercial : ${prof[e.assigned_to] || '?'}`]
   const named = inters.filter(i => i.name && !/^a d[ée]finir$/i.test(i.name.trim()))
-  if (named.length) L.push(`Interlocuteur(s) : ${named.map(i => `${i.name}${i.fonction ? ` (${i.fonction})` : ''}`).join(', ')}`)
-  else if (e.contact_name) L.push(`Interlocuteur : ${e.contact_name}`)
+  const noms = [...named.map(i => i.name), e.contact_name].filter(Boolean)
+  if (named.length) L.push(`Interlocuteur(s) : ${named.length} identifié(s)${named.some(i => i.fonction) ? ` (${named.map(i => i.fonction).filter(Boolean).join(', ')})` : ''}`)
+  else if (e.contact_name) L.push('Interlocuteur : identifié')
   if (e.proposition_envoyee_at) L.push(`Proposition commerciale envoyée le ${fmtFR(e.proposition_envoyee_at)}${e.proposition_signee_at ? `, signée le ${fmtFR(e.proposition_signee_at)}` : ''}`)
   if (e.a_relancer) L.push('Drapeau "À relancer" actif sur la fiche')
   if (e.notes) L.push(`Notes : ${e.notes}`)
   L.push(sorted.length ? 'Historique (du plus ancien au plus récent) :' : 'Historique : aucune action')
   sorted.forEach(a => L.push(`${fmtFR(a.performed_at)} ${(a.action_type || '').toLowerCase()} — ${a.result || ''}${a.need_identified ? ` — besoin identifié${a.need_type ? ` : ${a.need_type}` : ''}` : ''}${a.next_action ? ` — prochaine étape : ${a.next_action}${a.next_action_date ? ` le ${fmtFR(a.next_action_date)}` : ''}` : ''}${a.comments ? ` — ${a.comments.replace(/\n+/g, ' / ')}` : ''}`))
-  return L.join('\n')
+  return scrub(L.join('\n'), noms)
 }
 async function sb(env, path, init = {}) {
   const r = await fetch(`${env.SUPABASE_URL}/rest/v1/${path}`, { ...init, headers: { apikey: env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${env.SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal', ...(init.headers || {}) } })
@@ -323,13 +348,14 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
   const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const [profiles, ents, scores, acts] = await Promise.all([
     sbAll(env, `profiles?select=id,full_name,email,role,is_active&is_active=eq.true`),
-    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,a_relancer&status=eq.prospect`),
+    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,a_relancer,contact_name&status=eq.prospect`),
     sbAll(env, `ia_scores?select=enterprise_id,score,reason`),
     sbAll(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&order=performed_at.desc`),
   ])
   const scoreBy = Object.fromEntries(scores.map(s => [s.enterprise_id, s]))
   const last = {}
   acts.forEach(a => { if (!last[a.enterprise_id]) last[a.enterprise_id] = a })
+  const nomsBy = await nomsParEntreprise(env, ents)
   const out = { date: today, commercials: 0, suggestions: 0, errors: [], tokens: 0 }
   const targets = profiles.filter(p => !HIDDEN_EMAILS.includes((p.email || '').toLowerCase()) && (!force.length || force.includes(p.id)))
   for (const p of targets) {
@@ -342,7 +368,7 @@ async function dailySuggestions(env, { date, force = [] } = {}) {
       .slice(0, 40)
     if (!cands.length) continue
     out.commercials++
-    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${c.sc?.score ?? '?'}/5 : ${c.sc?.reason || '—'} | dernier contact ${fmtFR(c.la.performed_at)} (${c.la.result || '?'})${c.la.next_action_date ? ` | relance prévue ${fmtFR(c.la.next_action_date)}${c.la.next_action ? ` (${c.la.next_action})` : ''}` : ''}${c.e.a_relancer ? ' | drapeau à relancer' : ''} | commentaire : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}`).join('\n')
+    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${c.sc?.score ?? '?'}/5 : ${scrub(c.sc?.reason || '—', nomsBy[c.e.id])} | dernier contact ${fmtFR(c.la.performed_at)} (${c.la.result || '?'})${c.la.next_action_date ? ` | relance prévue ${fmtFR(c.la.next_action_date)}${c.la.next_action ? ` (${c.la.next_action})` : ''}` : ''}${c.e.a_relancer ? ' | drapeau à relancer' : ''} | commentaire : ${scrub((c.la.comments || '').replace(/\n+/g, ' / '), nomsBy[c.e.id]).slice(0, 220)}`).join('\n')
     try {
       const { result, model, usage } = await askClaude(env, 'daily', `Commercial : ${p.full_name}\nProspects suivis :\n${ctx}`, 12000)
       const picks = (result.picks || []).filter(x => ids.includes(x.id)).slice(0, 15)
@@ -425,7 +451,7 @@ async function computePeriodStats(env, start, end, prevStart) {
   const retard = Object.values(last).filter(a => a.result === 'À relancer' && a.next_action_date && a.next_action_date < endDate)
   // faits marquants
   const clientsGagnes = ents.filter(e => e.status === 'client' && inRange(e.converted_at, start, end)).map(e => ({ nom: e.name, ville: e.city, commercial: pname[e.converted_by] || pname[e.assigned_to] || '—' }))
-  const chauds = scores.filter(s => s.score >= 4 && E[s.enterprise_id]?.status === 'prospect').map(s => ({ nom: E[s.enterprise_id].name, chaleur: s.score, raison: s.reason, commercial: pname[E[s.enterprise_id].assigned_to] || '—' })).slice(0, 12)
+  const chauds = scores.filter(s => s.score >= 4 && E[s.enterprise_id]?.status === 'prospect').map(s => ({ nom: E[s.enterprise_id].name, chaleur: s.score, raison: scrub(s.reason), commercial: pname[E[s.enterprise_id].assigned_to] || '—' })).slice(0, 12)
   const chaudsSansRelance = scores.filter(s => s.score >= 4 && E[s.enterprise_id]?.status === 'prospect' && !(last[s.enterprise_id]?.next_action_date >= endDate)).map(s => E[s.enterprise_id].name).slice(0, 10)
   const presse = veille.filter(v => v.kind === 'mention').map(v => ({ entreprise: v.company_name, titre: v.title, source: v.source })).slice(0, 10)
   const pistes = veille.filter(v => v.kind === 'piste').length
@@ -492,7 +518,7 @@ async function generateReunion(env, { meetingDate, previousDate, pdfBase64 = '',
 async function reopenSuggestions(env, { date } = {}) {
   const today = date || new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const [ents, acts, presse, prior] = await Promise.all([
-    sbAll(env, `enterprises?select=id,name,city,department,assigned_to,description_activite&status=eq.prospect`),
+    sbAll(env, `enterprises?select=id,name,city,department,assigned_to,description_activite,contact_name&status=eq.prospect`),
     sbAll(env, `actions?select=enterprise_id,performed_at,result,comments&order=performed_at.desc`),
     sbAll(env, `ia_veille?select=enterprise_id,title,summary,published_at,created_at&kind=eq.mention`),
     sbAll(env, `ia_suggestions?select=enterprise_id,date&kind=in.(sans_suite,refus)`),
@@ -503,6 +529,7 @@ async function reopenSuggestions(env, { date } = {}) {
   const recentlySuggested = new Set(prior.filter(s => s.date >= cutoff30).map(s => s.enterprise_id))
   const cutoff60 = new Date(Date.now() - 60 * 86400000).toISOString()
   const cutoffPress = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10)
+  const nomsBy = await nomsParEntreprise(env, ents)
   const NEVER = /ne plus (re)?contacter|ne pas (re)?contacter|cessation|retraite|ferm[ée]e?|liquidation|hébergée sur place/i
   const out = { date: today, sans_suite: 0, refus: 0, errors: [], tokens: 0 }
   for (const [kind, label] of [['sans_suite', 'Sans suite'], ['refus', 'Refus']]) {
@@ -512,7 +539,7 @@ async function reopenSuggestions(env, { date } = {}) {
       .map(c => { const t = (c.la.comments || '').toLowerCase(); const cond = /(pour l'instant|pour le moment|actuellement|jusqu'|après |avant |rappeler|recontacter|reprendre|en 202|saison|vendange|chantier|report|agence|arrêt|absent|changement|direction|vente|complet)/.test(t) ? 1 : 0; return { ...c, score: (c.press.length ? 3 : 0) + cond } })
       .sort((a, b) => b.score - a.score || a.la.performed_at.localeCompare(b.la.performed_at)).slice(0, 60)
     if (!cands.length) continue
-    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} (${label}) : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 260)}${c.press.length ? ` | ACTU : ${c.press.map(p => `${fmtFR(p.published_at || p.created_at)} ${p.title}${p.summary ? ' — ' + p.summary : ''}`).join(' ; ').slice(0, 300)}` : ''}`).join('\n')
+    const ctx = cands.map(c => `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} (${label}) : ${scrub((c.la.comments || '').replace(/\n+/g, ' / '), nomsBy[c.e.id]).slice(0, 260)}${c.press.length ? ` | ACTU : ${c.press.map(p => `${fmtFR(p.published_at || p.created_at)} ${p.title}${p.summary ? ' — ' + p.summary : ''}`).join(' ; ').slice(0, 300)}` : ''}`).join('\n')
     try {
       const system = SYSTEM.reopen.replace('{{KIND}}', label)
       const r = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model: env.MODEL || DEFAULT_MODEL, max_tokens: 2000, system: system.replace(/\{\{TODAY\}\}/g, today), messages: [{ role: 'user', content: ctx }] }) })
@@ -534,7 +561,7 @@ async function reopenSuggestions(env, { date } = {}) {
 async function urgenceRelances(env, { force = false } = {}) {
   const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
   const [ents, acts, scores, presse, prev, logs] = await Promise.all([
-    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,proposition_envoyee_at`),
+    sbAll(env, `enterprises?select=id,name,city,assigned_to,description_activite,proposition_envoyee_at,contact_name`),
     sbAll(env, `actions?select=enterprise_id,performed_at,result,next_action,next_action_date,comments&order=performed_at.desc`),
     sbAll(env, `ia_scores?select=enterprise_id,score,reason`),
     sbAll(env, `ia_veille?select=enterprise_id,title,summary,published_at,created_at&kind=eq.mention`),
@@ -546,6 +573,7 @@ async function urgenceRelances(env, { force = false } = {}) {
   const pressBy = {}; presse.forEach(p => { (pressBy[p.enterprise_id] = pressBy[p.enterprise_id] || []).push(p) })
   const prevBy = Object.fromEntries(prev.map(p => [p.enterprise_id, p.computed_at]))
   const touched = new Set(logs.map(l => l.target_id))
+  const nomsBy = await nomsParEntreprise(env, ents)
   const week = new Date(Date.now() - 7 * 86400000).toISOString()
   const late = ents.map(e => ({ e, la: last[e.id] })).filter(c => c.la && c.la.result === 'À relancer' && c.la.next_action_date)
   const todo = late.filter(c => force || !prevBy[c.e.id] || prevBy[c.e.id] < week || touched.has(c.e.id) || (c.la.performed_at > prevBy[c.e.id]))
@@ -553,7 +581,7 @@ async function urgenceRelances(env, { force = false } = {}) {
   const days = (d) => Math.round((new Date(today) - new Date(d)) / 86400000)
   for (let i = 0; i < todo.length; i += 20) {
     const lot = todo.slice(i, i + 20)
-    const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${sc.reason}` : ''} | relance prévue le ${fmtFR(c.la.next_action_date)} (${c.la.next_action || 'relance'})${days(c.la.next_action_date) > 0 ? ` — EN RETARD de ${days(c.la.next_action_date)} j` : days(c.la.next_action_date) === 0 ? " — AUJOURD'HUI" : ` — dans ${-days(c.la.next_action_date)} j`}${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${(c.la.comments || '').replace(/\n+/g, ' / ').slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
+    const ctx = lot.map(c => { const sc = scoreBy[c.e.id]; const pr = (pressBy[c.e.id] || []).slice(0, 2); return `id=${c.e.id} | ${c.e.name} (${c.e.city || '?'})${c.e.description_activite ? ` — ${c.e.description_activite}` : ''} | chaleur ${sc?.score ?? '?'}/5${sc ? ` : ${scrub(sc.reason, nomsBy[c.e.id])}` : ''} | relance prévue le ${fmtFR(c.la.next_action_date)} (${c.la.next_action || 'relance'})${days(c.la.next_action_date) > 0 ? ` — EN RETARD de ${days(c.la.next_action_date)} j` : days(c.la.next_action_date) === 0 ? " — AUJOURD'HUI" : ` — dans ${-days(c.la.next_action_date)} j`}${c.e.proposition_envoyee_at ? ` | proposition envoyée le ${fmtFR(c.e.proposition_envoyee_at)}` : ''} | dernier contact ${fmtFR(c.la.performed_at)} : ${scrub((c.la.comments || '').replace(/\n+/g, ' / '), nomsBy[c.e.id]).slice(0, 220)}${pr.length ? ` | ACTU : ${pr.map(p => p.title + (p.summary ? ' — ' + p.summary : '')).join(' ; ').slice(0, 250)}` : ''}` }).join('\n')
     try {
       const { result, model, usage } = await askClaude(env, 'urgence', ctx, 6000)
       out.tokens += (usage?.input_tokens || 0) + (usage?.output_tokens || 0)
@@ -737,7 +765,7 @@ export default {
 
     const today = new Date().toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' })
     const system = SYSTEM[task].replace('{{TODAY}}', today)
-    const user = typeof context === 'string' ? context : JSON.stringify(context, null, 1)
+    const user = scrub(typeof context === 'string' ? context : JSON.stringify(context, null, 1))
 
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -759,4 +787,4 @@ export default {
 // VERSION DU WORKER — à incrémenter à chaque modification
 // Vérification : https://germaclients-ia.old-cake-a2b6.workers.dev/version
 // ============================================================
-const WORKER_VERSION = '1.2.1'
+const WORKER_VERSION = '1.3.0'
