@@ -380,7 +380,7 @@ function AddActionModal({ enterpriseId, initialComments = '', enterpriseName, on
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires <span className="font-normal text-xs text-gray-400">— pas d'information sensible (santé, situation personnelle) : les commentaires sont lus par l'assistant IA</span></label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1 flex items-center justify-center gap-2">{saving ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Plus size={16} />}<span>Enregistrer</span></button>
@@ -442,7 +442,7 @@ function EditActionModal({ action, enterpriseName, onClose, onSaved }) {
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Prochaine action</label><select value={form.next_action} onChange={e => update('next_action', e.target.value)} className="select-field"><option value="">—</option>{NEXT_ACTIONS.map(n => <option key={n} value={n}>{n}</option>)}</select></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Date prochaine action</label><input type="date" value={form.next_action_date} onChange={e => update('next_action_date', e.target.value)} className="input-field" /></div>
           </div>}
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires</label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">Commentaires <span className="font-normal text-xs text-gray-400">— pas d'information sensible (santé, situation personnelle) : les commentaires sont lus par l'assistant IA</span></label><textarea value={form.comments} onChange={e => update('comments', e.target.value)} className="input-field" rows={3} /></div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">{saving ? 'Enregistrement…' : 'Enregistrer'}</button>

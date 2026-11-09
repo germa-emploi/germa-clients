@@ -1,6 +1,11 @@
-export const APP_DISPLAY_VERSION = '2.43.1'
+export const APP_DISPLAY_VERSION = '2.43.2'
 
 export const CHANGELOG = [
+  {
+    version: '2.43.2',
+    date: '2026-11-09',
+    changes: ['Formulaires d\'action : rappel sous « Commentaires » — pas d\'information sensible (santé, situation personnelle), les commentaires étant lus par l\'assistant IA'],
+  },
   {
     version: '2.43.1',
     date: '2026-11-08',
